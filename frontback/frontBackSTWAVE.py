@@ -524,6 +524,7 @@ def STanalyze(startTime, inputDict):
     # ################################
     # Make NETCDF files              #
     # ## #############################
+    d = DT.datetime.now()  # logging starting time for display later
     #  local grid global metadata
     locGlobYml = 'yaml_files/waveModels/{}/{}/Field_Local_{}_globalmeta.yml'.format(model, version_prefix, version_prefix)
     # Regional grid Global metadata
@@ -749,7 +750,7 @@ def STanalyze(startTime, inputDict):
             makenc.makenc_Station(stat_dataNest, globalyaml_fname=globalyaml_fname_station, flagfname=flagfname,
                                     ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
 
-    print "netCDF file's created for %s " %startTime
+    print("netCDF file's created for {} in {}".format(startTime, DT.datetime.now()-d))
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     ## COLLECT  ALL data (process, rotate, time pair and make comparison plots)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
