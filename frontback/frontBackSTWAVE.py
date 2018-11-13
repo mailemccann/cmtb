@@ -667,7 +667,7 @@ def STanalyze(startTime, inputDict):
     ######################################################################################################################
     ######################################################################################################################
     RegionalStations = ['waverider-26m', 'waverider-17m', 'awac-11m', ':', ':', ':', ':', ':', ':', ':'] # where :'s are for sims in the nested
-    NestedStations = [':', ':', ':','8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m', ]
+    NestedStations = [':', ':', ':','8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
     if (version_prefix == 'CB' or version_prefix == 'CBHP') and \
             (startTime >= DT.datetime(2015,10,15) and endTime < DT.datetime(2015, 11, 1)):
         NestedStations.extend(('Station_p11', 'Station_p12', 'Station_p13', 'Station_p14', 'Station_p21', 'Station_p22',
