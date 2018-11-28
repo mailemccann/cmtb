@@ -196,6 +196,8 @@ def STsimSetup(startTime, inputDict):
     prepdata.data_check(wavepacket, windpacket, WLpacket, curpacket)
     ##___________________________________________________________________________
     ##  Get sensor locations and add to sim file start
+    if (d1 >= DT.datetime(2015,10, 15) and d2 < DT.datetime(2015, 11, 1)):
+        go.gaugelist.extend(['11', '12', '13', '14', '21', '22', '23', '24'])
     loc_dict = go.get_sensor_locations(datafile=FRFgaugelocsFile, window_days=14)
     statloc =  []
     for gauge in loc_dict.keys():
@@ -204,8 +206,8 @@ def STsimSetup(startTime, inputDict):
             statloc.append([coords['spE'], coords['spN']])
         except KeyError:
             continue
-    if (version_prefix == 'CB' or version_prefix == 'CBHP') and \
-            (d1 >= DT.datetime(2015,10,15) and d2 < DT.datetime(2015, 11, 1)):
+    if (d1 >= DT.datetime(2015,10, 15) and d2 < DT.datetime(2015, 11, 1)):
+        ## Steve and Britt's data
         locD11 = go.getBathyDuckLoc(11)
         loc11 = np.array([[locD11['StateplaneE'], locD11['StateplaneN']]])
         locD12 = go.getBathyDuckLoc(12)
