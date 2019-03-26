@@ -145,7 +145,7 @@ def CMSsimSetup(startTime, inputDict):
     #get gauge nodes x/y
     for gauge in go.gaugelist:
         pos = go.getWaveGaugeLoc(gauge)
-        coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
+        coord = gp.FRFcoord(pos['Lon'], pos['Lat'], coordType='LL')
         i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
         j = np.abs(coord['yFRF'] - bathy['yFRF'][::-1]).argmin()
         gaugelocs.append([i,j])
@@ -165,7 +165,6 @@ def CMSsimSetup(startTime, inputDict):
     cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
     stio = inputOutput.stwaveIO('')
     inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
-
     # remove old output files so they're not appended, cms defaults to appending output files
     try:
         os.remove(os.path.join(path_prefix, date_str, cmsio.waveFname))
