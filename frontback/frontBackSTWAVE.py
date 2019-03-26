@@ -57,9 +57,9 @@ def STsimSetup(startTime, inputDict):
         print('Chosing CHL thredds by Default, this may be slower!')
         server = 'CHL'
     if 'ForcedSurveyDate' in inputDict:
-        ForcedSurveyDate = inputDict['ForcedSurveyDate']
-        FSDpieces = ForcedSurveyDate.split('-')
-        ForcedSurveyDate = DT.datetime(int(FSDpieces[0]), int(FSDpieces[1]), int(FSDpieces[2]))
+        # force the survey to stay static and not automatically update
+        ForcedSurveyDate = DT.datetime.strptime(inputDict['ForcedSurveyDate'], '%Y-%m-%dT%H:%M:%SZ') #orcedSurveyDate.split('-')
+        # ForcedSurveyDate = DT.datetime(int(FSDpieces[0]), int(FSDpieces[1]), int(FSDpieces[2]))
     else:
         ForcedSurveyDate = None
     if not os.path.isfile(background_grid_parent):
