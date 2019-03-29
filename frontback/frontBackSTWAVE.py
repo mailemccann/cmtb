@@ -828,8 +828,10 @@ def STanalyze(startTime, inputDict):
                                 assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
                                 assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
                             except:
-                                print '!!!!!!!!!!FAILED BOUNDARY!!!!!!!!'
-                                print 'deleting data from thredds!'
+                                print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
+                                print('boundary condition RMSE  = {} threshold = {}'.format(stats['RMSE'], RMSE))
+                                print('boundary condition bias  = {} threshold = {}'.format(stats['bias'], bias))
+                                print('deleting data from thredds!')
                                 # os.remove(fieldOfname)
                                 os.remove(outFileName)
                                 raise RuntimeError('The Model Is not validating its offshore boundary condition')
