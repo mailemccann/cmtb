@@ -107,7 +107,7 @@ def CMSsimSetup(startTime, inputDict):
     prepdata = STPD.PrepDataTools()
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
-                                    outputPath=path_prefix, CMSinterp=50)  # 50 freq bands are max for model
+                                    outputPath=path_prefix, CMSinterp=30)  # 50 freq bands are max for model
     print "number of wave records %d with %d interpolated points" % (
     np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum())
 
@@ -376,7 +376,7 @@ def CMSanalyze(startTime, inputDict):
                 w = go.getWaveSpec(station)  # go get all data
             else:
                 w = go.getWaveGaugeLoc(station)
-            # print '   Comparison location taken from thredds, check positioning '
+
             stat_data = {'time': nc.date2num(stat_packet['time'][:], units='seconds since 1970-01-01 00:00:00'),
                          'waveHs': stat_packet['waveHs'][:, gg],
                          'waveTm': np.ones_like(stat_packet['waveHs'][:, gg]) * -999, # this isn't output by model, but put in fills to stay constant
