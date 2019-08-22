@@ -23,7 +23,6 @@ from testbedutils import waveLib as sbwave
 from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 
-
 def CMSsimSetup(startTime, inputDict):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the CMS wave/FLow model
@@ -62,13 +61,15 @@ def CMSsimSetup(startTime, inputDict):
     assert version_prefix in versionlist, 'Please check your version Prefix'
     simFnameBackground = inputDict['gridSIM']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.sim'
     backgroundDepFname = inputDict['gridDEP']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.dep'
+    CMSinterp = inputDict.get('CMSinterp', 50) # max freq bins for the model
+    fastModeOn = inputDict.get('fastMode', False)
     # do versioning stuff here
     if version_prefix == 'HP':
         full = False
     elif version_prefix == 'UNTUNED':
         full = False
     else:
-        pass
+        raise NotImplementedError('Check Version Prefix')
 
     # _______________________________________________________________________________
     # set times
@@ -107,7 +108,7 @@ def CMSsimSetup(startTime, inputDict):
     prepdata = STPD.PrepDataTools()
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
-                                    outputPath=path_prefix, CMSinterp=30)  # 50 freq bands are max for model
+                                    outputPath=path_prefix, CMSinterp=CMSinterp) # freq bands are max for model
     print "number of wave records %d with %d interpolated points" % (
     np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum())
 
@@ -159,7 +160,7 @@ def CMSsimSetup(startTime, inputDict):
 
     gridOrigin = (bathy['x0'], bathy['y0'])
 
-    cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs)
+    cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs, fastMode=fastModeOn)
     cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
     cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
     cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
@@ -238,6 +239,8 @@ def CMSanalyze(startTime, inputDict):
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
+    radStress_packet = cio.radSt_packet
+    breaking_packet = cio.break_packet
     dep_pack = cio.dep_Packet
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
@@ -247,14 +250,6 @@ def CMSanalyze(startTime, inputDict):
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles
     stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
-
-    # Load Spatial Data sets for plotting
-    # wavefreqbin = np.array([0.04, 0.0475, 0.055, 0.0625, 0.07, 0.0775, 0.085, 0.0925, 0.1, 0.1075, 0.115, 0.1225, 0.13, 0.1375,
-    #               0.145, 0.1525, 0.16, 0.1675, 0.175, 0.1825, 0.19, 0.1975, 0.205, 0.2125, 0.22, 0.2275, 0.235, 0.2425, 0.25,
-    #               0.2575, 0.2645, 0.2725, 0.28, 0.2875, 0.2945, 0.3025, 0.31, 0.3175, 0.3245, 0.3325, 0.34, 0.3475, 0.3545,
-    #               0.3625, 0.37, 0.3775, 0.3845, 0.3925, 0.4, 0.4075, 0.4145, 0.4225, 0.43, 0.4375, 0.4445, 0.4525, 0.46, 0.4675,
-    #               0.475, 0.4825, 0.49, 0.4975])
-
     obse_packet['ncSpec'] = np.ones(
         (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
     # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
@@ -288,10 +283,8 @@ def CMSanalyze(startTime, inputDict):
     # ################################
     #        Make NETCDF files       #
     # ################################
-    # STio = stwaveIO()
     if np.median(gridPack['elevation']) < 0:
         gridPack['elevation'] = -gridPack['elevation']
-
     fldrArch = os.path.join(model, version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),
                'station_name': 'Regional Simulation Field Data',
@@ -299,6 +292,9 @@ def CMSanalyze(startTime, inputDict):
                'waveTm': np.transpose(np.ones_like(wave_pack['waveHs']) * -999, (0, 2, 1)),
                'waveDm': np.transpose(wave_pack['waveDm'], (0, 2, 1)),  # put into dimensions [t, y, x]
                'waveTp': np.transpose(wave_pack['waveTp'], (0, 2, 1)),  # put into dimensions [t, y, x]
+               'radStressX': np.transpose(radStress_packet['radStressX'], (0,2,1)),
+               'radStressY': np.transpose(radStress_packet['radStressY'], (0, 2, 1)),
+               'dissipation': np.transpose(breaking_packet['dissipation'], (0,2,1)),
                'bathymetry': np.transpose(gridPack['elevation'], (0, 2, 1)),  # put into dimensions [t, y, x]
                'latitude': gridPack['latitude'],  # put into dimensions [t, y, x] - NOT WRITTEN TO FILE
                'longitude': gridPack['longitude'],  # put into dimensions [t, y, x] - NOT WRITTEN TO FILE
@@ -429,7 +425,7 @@ def CMSanalyze(startTime, inputDict):
 
             if pFlag == True and 'time' in w:
                 if full == False:
-                    w['dWED'], w['wavedirbin'] = prepdata.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=70)
+                    w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=70)
                 obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
 
                 modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['wavefreqbin'],

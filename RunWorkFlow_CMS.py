@@ -45,7 +45,7 @@ def Master_CMS_run(inputDict):
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
     if workingDir[-1] == '/':
-        outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
+        outDataBase = workingDir + 'CMS/' + version_prefix + '/'
     else:
         outDataBase = workingDir + '/CMS/' + version_prefix +'/'
 
