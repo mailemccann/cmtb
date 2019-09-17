@@ -43,7 +43,7 @@ def master_CSHORE_run(inputDict):
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
-    sorceCodePATH = inputDict['modelExecutable']
+    sourceCodePATH = inputDict['modelExecutable']
     if startTime == '$':  # this signifies daily or "live" run
         endTime = DT.datetime.now().strftime('%Y-%m-%dT00:00:00Z')
         startTime = (DT.datetime.strptime(endTime, '%Y-%m-%dT00:00:00Z') - DT.timedelta(seconds=simulationDuration*60)).strftime('%Y-%m-%dT00:00:00Z')
@@ -137,16 +137,14 @@ def master_CSHORE_run(inputDict):
                 datadir = os.path.join(outDataBase, ''.join(time.split(':')))  # moving to the new simulation's folder
 
             if runFlag == True:
+                shutil.copy2(sourceCodePATH, datadir)
                 os.chdir(datadir)# changing locations to where data should be downloaded to
-                shutil.copy2(sorceCodePATH, datadir)
-                print 'Bathy Interpolation done\n Beginning Simulation'
-                check_output(os.path.join('./', sorceCodePATH.split('/')[-1]), shell=True)
+                check_output(os.path.join('./', sourceCodePATH.split('/')[-1]), shell=True)
                 # as this is written the script has to be in the working directory, not in a sub-folder!
 
             # run analyze and archive script
             os.chdir(curdir)
             if analyzeFlag == True:
-                print '**\nBegin Analyze Script'
                 CSHORE_analysis(startTime=time, inputDict=inputDict)
 
             # not sure i want this so i commented it out for now

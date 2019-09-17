@@ -6,8 +6,8 @@ bathyLoc: integrated_bathy      # bathymetry source.  OPTIONAL: defaults to FRF
 ########################
 #simulations parameters#
 ########################
-startTime: "2018-05-28T00:00:00Z"             # project start time
-endTime:   "2018-07-15T00:00:00Z"             # project End time
+startTime: "2019-09-01T00:00:00Z"             # project start time
+endTime:   "2019-09-08T00:00:00Z"             # project End time
 simulationDuration: 24  # duration in hours            how frequently to get new data, size of individual simulations
 version_prefix: HP       # controls switched with int the code
 gridSIM: grids/CMS/CMS-Wave-FRF.sim    # base grid sim               REQUIRED
@@ -17,9 +17,9 @@ gridDEP: grids/CMS/CMS-Wave-FRF.dep  # base grid dep               REQUIRED
 ########################
 modelExecutable: /home/number/cmtb/bin/CMS_wave      # path to the model            REQUIRED
 # this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-workingDirectory: /data/CMS_wave                                  # REQUIRED
+workingDirectory: /data/projects/Dorian                                 # REQUIRED
 # this is the base directory where netCDF files are output to
-netCDFdir: /thredds_data/waveModels                                   #optional will default to home/[whoami]/thredds_data -- this needs /
+netCDFdir: /thredds_data/waveModels/CMS_wave/projects/Dorian                                 #optional will default to home/[whoami]/thredds_data -- this needs /
 #########################
 # testbed run control   #
 #########################
