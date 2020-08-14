@@ -83,7 +83,7 @@ def Master_CMS_run(inputDict):
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
     # run the process through each of the above dates
-    print '\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n'
+    print '\n-\n-\nMASTER WorkFLOW for SIMULATIONS\n-\n-\n'
     print 'Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd)
     print 'The batch simulation is Run in %s Version' % version_prefix
     print 'Check for simulation errors here %s' % LOG_FILENAME
