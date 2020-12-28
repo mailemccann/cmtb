@@ -327,7 +327,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'nProcess': np.expand_dims(fio.nprocess, axis=0),
                'DX': np.expand_dims(fio.DX, axis=0),
                'DY': np.expand_dims(fio.DY, axis=0),  # must be adjusted for 2D simulations
-               'NI': np.expand_dims(fio.Mglob, axis=0),
+               'NI': np.expand_dims(len(simData['xFRF']), axis=0),
                'NJ': np.expand_dims(fio.Nglob, axis=0), }  # should automatically adjust for 2D simulations
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
