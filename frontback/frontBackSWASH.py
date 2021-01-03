@@ -36,7 +36,7 @@ def SwashSimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    model = inputDict['modelSettings'].get('model')
+    model = inputDict['modelSettings'].get('model', 'swash')
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -94,7 +94,7 @@ def SwashSimSetup(startTime, inputDict):
     except (RuntimeError, TypeError):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=[940, 950])
     swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
                                                  yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
 
@@ -102,12 +102,12 @@ def SwashSimSetup(startTime, inputDict):
     # set some of the class instance variables before writing SWS file
     swio = swashIO(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
                    Dm=wavepacket['waveDm'], fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix,
-                   nprocess=gridDict['h'].shape[0])   # one compute core per cell in y
+                   nprocess=gridDict['elevation'].shape[0], runTime=17*60)   # one compute core per cell in y
 
     # write SWS file first
     swio.write_sws(swsinfo)
     swio.write_spec1D(wavepacket['freqbins'], wavepacket['fspec'])
-    swio.write_bot(gridDict['h'])
+    swio.write_bot(gridDict['elevation'])
     # now write QA/
     swio.flags = None
     pickleName = os.path.join(path_prefix, date_str,'.pickle')
