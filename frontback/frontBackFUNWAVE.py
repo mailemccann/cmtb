@@ -233,7 +233,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    # TODO: @Gaby, these should look familiar! ... yup, It does XD
     cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
     data = simData['eta'].squeeze()[cutRampingTime:,:]
 
@@ -257,7 +256,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     WL = simMeta['WL'] #added in editing, should possibly be changed?
     setup = np.mean(simData['eta'] + WL, axis=0).squeeze()
     if plotFlag == True:
-        #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
         imgList = glob.glob(os.path.join(fpath,fio.ofileNameBase, 'figures', '*.png'))
@@ -301,27 +299,26 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################################################################################################
     ##################################################################################################################
 
-    #TODO: @Gaby, the last step, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
-    # as we're going to be doing this for the LAB and it'd be nice to establish the "correct" format right off the
-    # bat here for FUNWAVE, then they can absorb what we generate to implement directly into the model. we have a
-    # tool to make netCDF files and it basically works by taking the model output and putting it into a dictionary.
-    # That dictionary will match the file: yaml_files/waveModels/funwave/funwave_var.yml hand the data to the
-    # function and the global metadata (yaml_files/waveModels/funwave/base/funwave_global.yml) and poof, it makes a
-    # matching netCDF file!  This will be the end of the workflow.
     tsTime = np.arange(0, len(simData['time'])*dt, dt)
 
     fldrArch = os.path.join(model, version_prefix)
+
+    ## filter "NaN" out of eta:
+    etaFINAL = np.zeros(np.shape(simData['eta'])) + simData['eta']
+    nanIndex = np.argwhere(np.isnan(etaFINAL))
+    etaFINAL[nanIndex] = -999.99
+
     spatial = {'time': nc.date2num(d1, units='seconds since 1970-01-01 00:00:00'),
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
-               'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
-               'eta': np.reshape(simData['eta'], (1, len(tsTime),len(simData['xFRF']))),
+               'waveHsIG': np.expand_dims(IGstats['Hm0'], axis=0),
+               'eta': np.expand_dims(etaFINAL, axis=0),
                'totalWaterLevel': maxRunup,
-               'totalWaterLevelTS': np.reshape(runup, (1, len(tsTime))),
-               'velocityU': np.reshape(simData['velocityU'], (1, len(tsTime),len(simData['xFRF']))),
-               'velocityV': np.reshape(simData['velocityV'], (1, len(tsTime),len(simData['xFRF']))),
-               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),  # or from HsTS??
-               'xFRF': np.reshape(simData['xFRF'], (1, len(simData['xFRF']))),
+               'totalWaterLevelTS': np.expand_dims(runup, axis=0),
+               'velocityU': np.expand_dims(simData['velocityU'], axis=0),
+               'velocityV': np.expand_dims(simData['velocityV'], axis=0),
+               'waveHs': np.expand_dims(SeaSwellStats['Hm0'], axis=0),  # or from HsTS??
+               'xFRF': np.expand_dims(simData['xFRF'], axis=0),
                'yFRF': simData['yFRF'][0],
                'runTime': np.expand_dims(fio.simulationWallTime, axis=0),
                'nProcess': np.expand_dims(fio.nprocess, axis=0),
