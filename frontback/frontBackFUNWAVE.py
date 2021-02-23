@@ -275,8 +275,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 if np.median(bottomIn) > 0:
                     bottomIn = -bottomIn
 
-                shoreline= np.where(dataIn > bottomIn)[0][0]
-                dataIn[:shoreline] = float("NAN")
+                #shoreline= np.where(dataIn > bottomIn)[0][0]
+                #dataIn[:shoreline] = float("NAN")
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
         # now make gif of waves moving across shore
@@ -304,15 +304,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     fldrArch = os.path.join(model, version_prefix)
 
     ## filter "NaN" out of eta:
-    etaFINAL = np.zeros(np.shape(simData['eta'])) + simData['eta']
-    nanIndex = np.argwhere(np.isnan(etaFINAL))
-    etaFINAL[nanIndex] = -999.99
+    nanIndex = np.argwhere(np.isnan(simData['eta']))
+    simData['eta'][nanIndex] = -999.99
 
     spatial = {'time': nc.date2num(d1, units='seconds since 1970-01-01 00:00:00'),
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
                'waveHsIG': np.expand_dims(IGstats['Hm0'], axis=0),
-               'eta': np.expand_dims(etaFINAL, axis=0),
+               'eta': np.expand_dims(simData['eta'], axis=0),
                'totalWaterLevel': maxRunup,
                'totalWaterLevelTS': np.expand_dims(runup, axis=0),
                'velocityU': np.expand_dims(simData['velocityU'], axis=0),
