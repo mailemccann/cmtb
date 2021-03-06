@@ -117,7 +117,10 @@ def Master_FUNWAVE_run(inputDict):
 
                     count = multiprocessing.cpu_count()
                     if count < fIO.nprocess:
-                        fIO.nprocess = count
+                        raise EnvironmentError('simulation is calling for more cores than are avialable, please check logic')
+                        # this could be the logic associated with generating px,py (core counts requested) this could be
+                        # with the logic asking how many cores are available
+
                     print('Running Simulation with {} processors'.format(fIO.nprocess))
                     executionString = "mpiexec -n {} -f {} {} input.txt".format(int(fIO.nprocess), hostfile,
                                                                     os.path.join(curdir, inputDict['modelExecutable']))

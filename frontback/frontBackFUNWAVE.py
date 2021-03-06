@@ -104,13 +104,14 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = 3
     else:
         py = np.floor(Nglob / 150)
-    if px <48:
+    if px > 48:  # hard coded for Crunchy
         px = 48
+
     nprocessors = px * py  # now calculated on init
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
-                    px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
+                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob)
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
