@@ -2282,7 +2282,7 @@ def crossShoreSurfaceTS2D(ofname, eta, xFRF, time):
     """
     eta= eta.squeeze()
     plt.figure()
-    plt.pcolormesh(xFRF, time, eta, cmap='RdBu')
+    plt.pcolormesh(xFRF, time, eta, cmap='RdBu', shading='auto')
     plt.savefig(ofname)
     plt.close()
 
@@ -2303,7 +2303,7 @@ def crossShoreSpectrograph(ofname, xFRF, freqs, fspec, **kwargs):
     """
     ylims = kwargs.get('ylims', (0, 0.4))
     plt.figure();
-    plt.pcolormesh(xFRF, freqs, fspec.T)
+    plt.pcolormesh(xFRF, freqs, fspec.T, shading='auto')
     plt.colorbar()
     plt.ylabel('frequency', fontsize=12)
     plt.xlabel('cross-shore location', fontsize=12)

@@ -147,26 +147,22 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         netCDF files to the inputDict['netCDFdir'] directory
 
     """
-    print("check docstrings for Analyze and preprocess")
+    print("TODO: check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     Thredds_Base = inputDict.get('netCDFdir', '/thredds_data')
-    server = inputDict.get('THREDDS', 'CHL')
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
     model = inputDict.get('modelName', 'funwave').lower()
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
-    #d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    #d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-
     d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
     d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = path_prefix #os.path.join(path_prefix, datestring)
+    fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
     #_____________________________________________________________________________
@@ -180,7 +176,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################################################################################################################
     ######################################################################################################################
 
-    outputFolder = os.path.join(fpath,fio.ofileNameBase,'output')
+    outputFolder = os.path.join(fpath,'output')
     print('Loading files ',outputFolder)
 
     ## upload depth file
@@ -188,15 +184,22 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     if os.path.exists(depthFile)==True:
         try:
             Depth1D = fio.readasciidepthfile(depthFile)
-        except:
+        except(UnicodeDecodeError):
             Depth1D = fio.readbinarydepthfile(depthFile)
+    elif os.path.exists(os.path.join(fpath, 'depth.txt')):
+        try:
+            Depth1D = fio.readasciidepthfile(os.path.join(fpath, 'depth.txt'))
+        except (OSError):
+            Depth1D = fio.readbinarydepthfile(os.path.join(fpath, 'depth.out'))
     else:
         try:
-            Depth1D = fio.readasciidepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
-        except:
-            Depth1D = fio.readbinarydepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
-
-    simData, simMeta = fio.loadFUNWAVE_stations(Depth1D,fname=outputFolder)  # load all files
+            Depth1D = fio.readasciidepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.txt'))
+        except (OSError):
+            Depth1D = fio.readbinarydepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.out'))
+    try:
+        simData, simMeta = fio.loadFUNWAVE_stations(Depth1D, fname=outputFolder)  # load all files
+    except:
+        simData, simMeta = fio.loadFUNWAVE_stations(Depth1D, fname=fpath)  # load all files
 
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
@@ -266,7 +269,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
             if tidx < np.shape(time)[0]:
 
-                figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
+                figPath = os.path.join(fpath,'figures')
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
 
                 bottomIn = -simData['elevation']
@@ -276,13 +279,18 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                     bottomIn = -bottomIn
 
                 shoreline= np.where(dataIn > bottomIn)[0][0]
-                dataIn[:shoreline] = float("NAN")
+                dataIn[:shoreline] = float("NAN")   #TODO: why do we not use np.nan, masked arrays, or fill values ?
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
+
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
         dt = np.median(np.diff(time)).microseconds / 1000000
-        sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        # try:
+        #     sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        # except(ImportError):
+        sb.makegif(imgList, os.path.join(figPath, figureBaseFname + 'TS_{}.gif'.format(datestring)))
+
         tarOutFile = os.path.join(figPath, figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
@@ -327,7 +335,10 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'NI': np.expand_dims(len(simData['xFRF']), axis=0),
                'NJ': np.expand_dims(fio.Nglob, axis=0), }  # should automatically adjust for 2D simulations
 
+
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
+    if version_prefix == 'freq':
+        fieldOfname = fieldOfname.split('_2')[0] +'_'+ fio.spectra_name.split('.txt')[0]+'.nc'
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
     # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
     # # make the name of this nc file
