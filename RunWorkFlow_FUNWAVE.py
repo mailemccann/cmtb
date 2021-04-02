@@ -10,7 +10,7 @@ import numpy as np
 from frontback import frontBackFUNWAVE
 from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
-
+import pickle5 as pickle
 
 def Master_FUNWAVE_run(inputDict):
     """This function will run FUNWAVE with any version prefix given start, end, and timestep
@@ -54,7 +54,6 @@ def Master_FUNWAVE_run(inputDict):
     projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
     projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # This is the portion that creates a list of simulation end times
-    # dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
     dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(projectStart, projectEnd,
                                                                               simulationDuration=simulationDuration)
@@ -65,7 +64,7 @@ def Master_FUNWAVE_run(inputDict):
     fileHandling.checkVersionPrefix(model, inputDict)
     # ______________________________Get data to run model  _____________________________
     # begin model data gathering
-    go = getDataFRF.getObs(projectStart, projectEnd)                  # initialize get observation class
+    go = getDataFRF.getObs(projectStart, projectEnd, server='CHL')                  # initialize get observation class
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
 
 
@@ -75,7 +74,8 @@ def Master_FUNWAVE_run(inputDict):
             bathy = pickle.load(fid)
         with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
             phases = pickle.load(fid)
-        freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
+        freqList = inputDict['modelSettings']['freqList']
+        # freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.005000', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
 
         ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
@@ -93,6 +93,7 @@ def Master_FUNWAVE_run(inputDict):
     # _____________________________ RUN LOOP ___________________________________________
     for dfKey in freqList:                      # loop through frequency members
         for enMb in ensembleNumber:           # loop through ensemble members
+            print("_________________________________________________________________")
             print("  RUNNING {}  with ensemble number {}".format(dfKey, enMb))
             inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
             assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
@@ -116,15 +117,16 @@ def Master_FUNWAVE_run(inputDict):
 
                     count = multiprocessing.cpu_count()
                     if count < fIO.nprocess:
-                        fIO.nprocess = count
+                        raise EnvironmentError('simulation is calling for more cores than are avialable, please check logic')
+                        # this could be the logic associated with generating px,py (core counts requested) this could be
+                        # with the logic asking how many cores are available
+
                     print('Running Simulation with {} processors'.format(fIO.nprocess))
-                    executionString = "mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                    executionString = "mpiexec -n {} -f {} {} input.txt".format(int(fIO.nprocess), hostfile,
                                                                     os.path.join(curdir, inputDict['modelExecutable']))
-
-
-                    #_ = check_output("mpirun -n {} {} input.txt".format(executionString), shell=True)
-                    #fIO.simulationWallTime = time.time() - dt
-                    #print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
+                    _ = check_output(executionString, shell=True)
+                    fIO.simulationWallTime = time.time() - dt
+                    print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
 
                     os.chdir(curdir)
                     with open(pickleSaveFname, 'wb') as fid:
@@ -133,8 +135,6 @@ def Master_FUNWAVE_run(inputDict):
                 else:   # assume there is a saved pickle of input/output that was generated before
 
                     with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
-                    #wepa = "/home/gaby/cmtb/data/funwave/freq/FRF1D-520NF_5915654/phase_df-0.005000_1_io.pickle"
-                    #with open(wepa, 'rb') as fid:
                         fIO = pickle.load(fid)
 
                 if analyzeFlag == True:
@@ -153,7 +153,7 @@ def Master_FUNWAVE_run(inputDict):
                 print('------------------Model Run: SUCCESSS-----------------------------------------')
 
             except Exception as e:
-                print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
+                print('______________<< ERROR >> HAPPENED IN THIS STEP ')
                 print(e)
                 logging.exception('\nERROR FOUND', exc_info=True)
                 os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
@@ -179,5 +179,4 @@ if __name__ == "__main__":
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/FUNWAVE_Input_example for '
                       'example yaml file.')
-
     Master_FUNWAVE_run(inputDict=inputDict)

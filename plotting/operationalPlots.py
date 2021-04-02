@@ -506,21 +506,36 @@ def plotWaveProfile(x, waveHs, bathyToPlot, fname):
     plt.close()
 
 
-def adjust_plot_ticks(p_dict):
-    """ This script adjusts the axis ticks / date format of plots"""
+# these are all the ones that were formerly in CSHORE_plotLib
+def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
+    """
+    This script basically just compares two time series, under
+        the assmption that one is from the model and one a set of observations
 
-    assert len(p_dict['time']) == len(p_dict['obs']) == len(
-        p_dict['model']), "Your time, model, and observation arrays are not all the same length!"
-    assert sum([isinstance(p_dict['time'][ss], DT.datetime) for ss in range(0, len(p_dict['time']))]) == len(
-        p_dict['time']), 'Your times input must be an array of datetimes!'
+    :param  file_path: this is the full file-path (string) to the location where the plot will be saved
+    :param p_dict: has 6 keys to it.
+        (1) a vector of datetimes ('time')
+        (2) vector of observations ('obs')
+        (3) vector of model data ('model')
+        (4) variable name (string) ('var_name')
+        (5) variable units (string!!) ('units') -> this will be put inside a tex math environment!!!!
+        (6) plot title (string) ('p_title')
+    :return: a model vs. observation time-series plot'
+        the dictionary of the statistics calculated
+
+    """
+    # this function plots observed data vs. model data for time-series data and computes stats for it.
+
+    assert len(p_dict['time']) == len(p_dict['obs']) == len(p_dict['model']), "Your time, model, and observation arrays are not all the same length!"
+    assert sum([isinstance(p_dict['time'][ss], DT.datetime) for ss in range(0, len(p_dict['time']))]) == len(p_dict['time']), 'Your times input must be an array of datetimes!'
     # calculate total duration of data to pick ticks for Xaxis on time series plot
     totalDuration = p_dict['time'][-1] - p_dict['time'][0]
     if totalDuration.days > 365:  # this is a year +  of data
         # mark 7 day increments with monthly major lables
-        majorTickLocator = mdates.MonthLocator(interval=3)  # every 3 months
-        minorTickLocator = mdates.AutoDateLocator()  # DayLocator(7)
+        majorTickLocator = mdates.MonthLocator(interval=3) # every 3 months
+        minorTickLocator = mdates.AutoDateLocator() # DayLocator(7)
         xfmt = mdates.DateFormatter('%Y-%m')
-    elif totalDuration.days > 30:  # thie is months of data that is not a year
+    elif totalDuration.days > 30: # thie is months of data that is not a year
         # mark 12 hour with daily major labels
         majorTickLocator = mdates.DayLocator(1)
         minorTickLocator = mdates.HourLocator(12)
@@ -532,19 +547,30 @@ def adjust_plot_ticks(p_dict):
         xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
     else:
         # mark hourly with 6 hour labels major intervals
-        tickInterval = 6  # hours?
+        tickInterval = 12  # hours?
         majorTickLocator = mdates.HourLocator(interval=tickInterval)
         minorTickLocator = mdates.HourLocator(1)
-        xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
+        xfmt = mdates.DateFormatter('%m/%d\n%H:%M')
+    # DLY notes 12/17/2018 - I think this tick selection section still needs work,
+    # it works fine in some cases but terrible in others
 
-    return xfmt, minorTickLocator, majorTickLocator
+    ####################################################################################################################
+    # Begin Plot
+    ####################################################################################################################
+    fig = plt.figure(figsize=(10, 10))
+    if 'p_title' in p_dict.keys():
+        fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
 
-
-def determine_axis_scale_factor(p_dict):
-    """This script determines the obs_v_model TS plot axis scale factor"""
+    # time series
+    ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
     min_val = np.nanmin([np.nanmin(p_dict['obs']), np.nanmin(p_dict['model'])])
     max_val = np.nanmax([np.nanmax(p_dict['obs']), np.nanmax(p_dict['model'])])
-
+    if min_val < 0 and max_val > 0:
+        ax1.plot(p_dict['time'], np.zeros(len(p_dict['time'])), 'k--')
+    ax1.plot(p_dict['time'], p_dict['obs'], 'r.', label='Observed')
+    ax1.plot(p_dict['time'], p_dict['model'], 'b.', label='Model')
+    ax1.set_ylabel('%s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+    # determine axis scale factor
     if min_val >= 0:
         sf1 = 0.9
     else:
@@ -553,110 +579,24 @@ def determine_axis_scale_factor(p_dict):
         sf2 = 1.1
     else:
         sf2 = 0.9
-
-    return min_val, max_val, sf1, sf2
-
-
-def plot_string_message(p_dict, stats_dict):
-    """ This script creates the strings for the obs_vs_model TS plot"""
-    header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
-    m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
-    o_mean_str = '\n Observation Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['o_mean']), p_dict['units'])
-    bias_str = '\n Bias $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['bias']), p_dict['units'])
-    RMSE_str = '\n RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSE']), p_dict['units'])
-    SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
-    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
-    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
-    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
-    num_String = '\n Number of samples $= %s$' % len(stats_dict['residuals'])
-    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + SI_str + sym_slp_str + corr_coef_str + RMSE_Norm_str + num_String
-
-    return plot_str, header_str
-
-
-def statistics_dictionary(p_dict):
-    """ This script calls StatsBryant and produces a dictionary with data statistics"""
-    stats_dict = {}
-    if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
-        p_dict['obs'] = np.array(p_dict['obs'])
-    stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
-    stats_dict['m_mean'] = np.nanmean(p_dict['model'])
-    stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
-    return stats_dict
-
-# these are all the ones that were formerly in CSHORE_plotLib
-def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
-    """This script basically just compares two time series, under
-        the assmption that one is from the model and one a set of observations
-
-    Args:
-      file_path: this is the full file-path (string) to the location where the plot will be saved
-      p_dict: has 6 keys to it.
-        'time':  a vector of datetimes
-
-        'obs':  vector of observations
-
-        'model': vector of model data
-
-        'var_name' (str): variable name
-
-        'units' (str): variable units -> this will be put inside a tex math environment!!!!
-
-        'p_title' (str): plot title
-
-      ofname: output file name
-      logo_path: path to a small logo to put at the bottom of the figure (Default value = 'ArchiveFolder/CHL_logo.png')
-
-    Returns:
-      a model vs. observation time-series plot'
-      the dictionary of the statistics calculated
-
-    """
-    # this function plots observed data vs. model data for time-series data and computes stats for it.
-
-    ####################################################################################################################
-    # Begin Plot
-    ####################################################################################################################
-    fig = plt.figure(figsize=(10, 10))
-    fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
-
-    # time series
-    ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
-
-    min_val, max_val, sf1, sf2 = determine_axis_scale_factor(p_dict)
-    xfmt, minorTickLocator, majorTickLocator = adjust_plot_ticks(p_dict)
-
-    if min_val < 0 and max_val > 0:
-        base_date = min(p_dict['time']) - DT.timedelta(
-            seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())
-        base_times = np.array(
-            [base_date + DT.timedelta(seconds=n * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()) for n in
-             range(0, len(p_dict['time']) + 1)])
-        ax1.plot(base_times, np.zeros(len(base_times)), 'k--')
-
-    plt.grid()
-    ax1.scatter(p_dict['time'], p_dict['obs'], s=75, c='r', marker='o', label='Observed')
-    ax1.scatter(p_dict['time'], p_dict['model'], s=75, c='b', marker='o', label='Model')
-    ax1.set_ylabel('%s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
-
     ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    ax1.set_xlim(
-        [min(p_dict['time']) - DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()),
-         max(p_dict['time']) + DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())])
+    ax1.set_xlim([min(p_dict['time']) - DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()),
+                  max(p_dict['time']) + DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())])
 
     # this is what you change for time-series x-axis ticks!!!!!
+    #
     # ax1.xaxis.set_major_locator(majorTickLocator)
     # ax1.xaxis.set_minor_locator(minorTickLocator)
     # ax1.xaxis.set_major_formatter(xfmt)
-
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(14)
 
+    ax1.minorticks_off()
     ax1.tick_params(labelsize=14)
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
-
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., 0.102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
+    fig.autofmt_xdate()
     # Now working on the 1-1 comparison subplot
     one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
     ax2 = plt.subplot2grid((2, 2), (1, 0), colspan=1)
@@ -664,7 +604,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
-    ax2.scatter(p_dict['obs'], p_dict['model'], s=75, c='r', marker='*')
+    ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
     ax2.set_xlabel('Observed %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_ylabel('Model %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_xlim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
@@ -676,33 +616,43 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     ax2.tick_params(labelsize=14)
     plt.legend(loc=0, ncol=1, borderaxespad=0.5, fontsize=14)
 
-    stats_dict = statistics_dictionary(p_dict)
-    plot_str, header_str = plot_string_message(p_dict, stats_dict)
+    # stats and stats text
+    stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
+    stats_dict['m_mean'] = np.nanmean(p_dict['model'])
+    stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
 
+    header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
+    m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
+    o_mean_str = '\n Observation Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['o_mean']), p_dict['units'])
+    bias_str = '\n Bias $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['bias']), p_dict['units'])
+    RMSE_str = '\n RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSE']), p_dict['units'])
+    SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
+    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
+    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
+    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
+
+    num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
+    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + RMSE_Norm_str + SI_str + sym_slp_str + corr_coef_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
-    ax3.axis('off')
     ax4 = ax3.twinx()
     ax3.axis('off')
-
+    ax4.axis('off')
     try:
-        ax4.axis('off')
-        CHL_logo = image.imread(os.path.join(logo_path))
+        CHL_logo = image.imread(logo_path)
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
         print('Plot generated sans CHL Logo!')
 
-    ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
     ax3.text(0.01, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
 
     fig.subplots_adjust(wspace=0.4, hspace=0.1)
-    fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
-    fig.savefig(ofname, dpi=80)
+    # fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
+    fig.savefig(ofname, dpi=300)
     plt.close()
-
     return stats_dict
 
 def bc_plot(ofname, p_dict):
@@ -1018,8 +968,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     plt.legend(loc=0, ncol=1, borderaxespad=0.5, fontsize=14)
 
     # stats and stats text
-    #stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
-    stats_dict = statistics_dictionary(p_dict)
+    stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
 
     # volume change, shallow
     index_XXm = np.min(np.argwhere(p_dict[
