@@ -623,6 +623,89 @@ def plot_string_message(p_dict, stats_dict):
     return plot_str, header_str
 
 
+def create_obs_dictionary(d1, d2, stations):
+    """This script returns a structured dictionary of several stations of interests.
+
+    Args:
+     d1 = start time
+     d2 = end time
+     stations = list of stations of interest
+
+    Returns:
+      obs_dict = has 4 keys; each being a dictionary of the stations of interests.
+      Each station key dictionaries will have 4 keys:
+          time = Time
+          Hs = Significant wave height
+          WaveDm = Mean wave direction
+          WaveTm = Mean sea surface wave period"""
+
+    go = getDataFRF.getObs(d1, d2)  # call get observations class (from getdatatestbed's getDataFRF)
+
+    # create field dictionary
+    obs_dict = {}
+
+    for i, sta in enumerate(stations):
+
+        rawspec = go.getWaveSpec(gaugenumber=sta)  # call get wave spectra function
+
+        if rawspec is not None:  # check if station has data for the provided date
+
+            obs_dict[sta] = {'time': rawspec['time'],  # time
+                             'Hs': rawspec['Hs'],  # Significant wave height
+                             'waveTm': rawspec['Tm'],  # Mean sea surface wave period
+                             'waveDm': rawspec['waveDm']}  # Mean wave direction
+        else:
+            print("{}'s rawspec is NoneType".format(sta))
+
+    return obs_dict
+
+
+def create_model_dictionary(d1, d2, stations):
+    """This script returns a structured dictionary of models and their results at stations of interests.
+
+    Args:
+     d1 = start time
+     d2 = end time
+     stations = list of stations of interest
+
+    Returns:
+      model_dict = has 4 keys; 2 being the stations and model least, and the final two each being a dictionary
+      of the models CMS and STWAVE.
+      Each model key will have station dictionaries containing:
+          time = Time
+          Hs = Significant wave height
+          WaveDm = Mean wave direction
+          WaveTm = Mean sea surface wave period"""
+
+    models = ['STWAVE', 'CMS']
+
+    gm = getDataFRF.getDataTestBed(d1, d2)  # call get data testbed class (from getdatatestbed's getDataFRF)
+
+    # create model dictionary
+    model_dict = {}
+
+    for j, mod in enumerate(models):
+
+        model_dict[mod] = {}
+
+        for i, sta in enumerate(stations):
+
+            rawspec = gm.getWaveSpecModel(prefix='HP', model=mod, gaugenumber=sta)  # call get wave spectra function
+
+            if rawspec is not None:  # check if model's station has data for the provided date
+
+                model_dict[mod][sta] = {'time': rawspec['time'],  # time
+                                        'Hs': rawspec['Hs'],  # Significant wave height
+                                        'waveTm': rawspec['waveTm'],  # Mean sea surface wave period
+                                        'waveDm': rawspec['waveDm']}  # Mean wave direction
+
+
+            else:
+                print("{}'s rawspec is NoneType".format(sta))
+
+    return model_dict
+
+
 def statistics_dictionary(observation, model, var):
     """ This script calls statsBryant (both non-directioanl and directional versions) function and creates stats_dict.
 
