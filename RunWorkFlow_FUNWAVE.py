@@ -74,8 +74,8 @@ def Master_FUNWAVE_run(inputDict):
             bathy = pickle.load(fid)
         with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
             phases = pickle.load(fid)
-        freqList = inputDict['modelSettings']['freqList']
-        # freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.005000', 'df-0.001000',
+        #freqList = inputDict['modelSettings']['freqList']
+        freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.005000', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
 
         ensembleNumber = [int(i) for i in ensembleNumber.split(',')]

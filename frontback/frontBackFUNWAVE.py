@@ -274,13 +274,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
 
                 bottomIn = -simData['elevation']
-                dataIn = simData['eta'][tidx].squeeze()
+                dataIn = simData['eta'][tidx].squeeze() #TODO: dataIn is only used for plotting
 
                 if np.median(bottomIn) > 0:
                     bottomIn = -bottomIn
 
                 shoreline= np.where(dataIn > bottomIn)[0][0]
                 dataIn[:shoreline] = np.nan   #TODO: why do we not use np.nan, masked arrays, or fill values ?
+                                             #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
 
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
