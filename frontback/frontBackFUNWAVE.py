@@ -276,11 +276,11 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 bottomIn = -simData['elevation']
                 dataIn = simData['eta'][tidx].squeeze() #TODO: dataIn is only used for plotting
 
-                if np.median(bottomIn) > 0:
-                    bottomIn = -bottomIn
+                #if np.median(bottomIn) > 0:
+                #    bottomIn = -bottomIn
 
-                shoreline= np.where(dataIn > bottomIn)[0][0]
-                dataIn[:shoreline] = np.nan   #TODO: why do we not use np.nan, masked arrays, or fill values ?
+                #shoreline= np.where(dataIn > bottomIn)[0][0]
+                #dataIn[:shoreline] = np.nan   #TODO: why do we not use np.nan, masked arrays, or fill values ?
                                              #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
 
 
@@ -322,6 +322,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
                'waveHsIG': np.expand_dims(IGstats['Hm0'], axis=0),
+               'elevation': np.expand_dims(simData['elevation'], axis=0),
                'eta': np.expand_dims(simData['eta'], axis=0),
                'totalWaterLevel': maxRunup,
                'totalWaterLevelTS': np.expand_dims(runup, axis=0),
