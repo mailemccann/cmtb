@@ -2,7 +2,7 @@
 import multiprocessing
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
@@ -64,7 +64,7 @@ def Master_FUNWAVE_run(inputDict):
     fileHandling.checkVersionPrefix(model, inputDict)
     # ______________________________Get data to run model  _____________________________
     # begin model data gathering
-    go = getDataFRF.getObs(projectStart, projectEnd, server='CHL')                  # initialize get observation class
+    go = getDataFRF.getObs(projectStart, projectEnd, server='FRF')                  # initialize get observation class
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
 
 
@@ -83,12 +83,15 @@ def Master_FUNWAVE_run(inputDict):
         for dfKey in freqList:
             if any(phase.startswith(dfKey)for phase in phases.keys()):
                 print('  {} key not in pickle'.format(dfKey))
-            for i in range(100):
+            for i in ensembleNumber:
                 if len(phases['phase_{}_{}'.format(dfKey, i)]) == 0:
                     print('failed phase_{}_{}'.format(dfKey, i))
 
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+
+    rawspec = go.getWaveSpec(gaugenumber='8m-array')
+    rawWL = go.getWL()
 
     # _____________________________ RUN LOOP ___________________________________________
     for dfKey in freqList:                      # loop through frequency members
@@ -105,8 +108,6 @@ def Master_FUNWAVE_run(inputDict):
 
                 if generateFlag == True:
                     # assigning min/max frequency bands with resolution of df key
-                    rawspec = go.getWaveSpec(gaugenumber='8m-array')
-                    rawWL = go.getWL()
 
                     inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
