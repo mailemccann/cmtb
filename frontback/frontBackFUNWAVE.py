@@ -1,6 +1,6 @@
 """
 This script holds the master function for the simulation Setup
-for the Swash model setup
+for the funwave model setup
 """
 from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools as STPD
@@ -71,7 +71,8 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     #    #raise NotImplementedError('pre-process TS data ')
     #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
+    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases,
+                                          grid=inputDict['modelSettings']['grid'])
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
@@ -106,8 +107,12 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = np.floor(Nglob / 150)
     if px > 48:  # hard coded for Crunchy
         px = 48
-
-    nprocessors = px * py  # now calculated on init
+    if version_prefix == 'freq':
+        nprocessors = 48
+        py = 3
+        px = 16
+    else:
+        nprocessors = px * py  # now calculated on init
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
@@ -307,7 +312,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################        Make NETCDF files       ############################################################
     ##################################################################################################################
     ##################################################################################################################
-
+    dt = np.median(np.diff(time)).microseconds / 1000000
     tsTime = np.arange(0, len(simData['time'])*dt, dt)
 
     fldrArch = os.path.join(model, version_prefix)
@@ -339,7 +344,10 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
     if version_prefix == 'freq':
-        fieldOfname = fieldOfname.split('_2')[0] +'_'+ fio.spectra_name.split('.txt')[0]+'.nc'
+        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, os.path.join(fldrArch, datestring),
+                                                        fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0],
+                                                        'Field')
+        # fieldOfname = fieldOfname.split('_2')[0] +'_'+fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0]+'.nc'
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
     # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
     # # make the name of this nc file
