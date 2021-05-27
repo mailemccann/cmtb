@@ -87,9 +87,9 @@ def Master_FUNWAVE_run(inputDict):
 
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
-
-    rawspec = go.getWaveSpec(gaugenumber='8m-array')
-    rawWL = go.getWL()
+    if generateFlag is True:
+        rawspec = go.getWaveSpec(gaugenumber='8m-array')
+        rawWL = go.getWL()
 
     # _____________________________ RUN LOOP ___________________________________________
     for dfKey in freqList:                      # loop through frequency members
@@ -106,7 +106,6 @@ def Master_FUNWAVE_run(inputDict):
 
                 if generateFlag == True:
                     # assigning min/max frequency bands with resolution of df key
-
                     inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     

@@ -79,6 +79,7 @@ yFRF:
     data_type: 'f8'
     dim: ['yFRF']
     fill_value: '-999.99'
+
 elevation:
     name: 'elevation'
     units: 'meters NAVD88'
@@ -86,7 +87,7 @@ elevation:
     long_name: 'elevation'
     data_type: 'f8'
     coordinates: 'time'
-    dim: ['time', 'tsTime', 'xFRF']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Elevation'
 

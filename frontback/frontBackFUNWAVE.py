@@ -158,11 +158,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    cutRampingTime = inputDict['modelSettings'].get('spinupTime', 0)  # spinup Time, removes data from output file [in samples]
     Thredds_Base = inputDict.get('netCDFdir', '/thredds_data')
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
     model = inputDict.get('modelName', 'funwave').lower()
+
+
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
@@ -210,8 +213,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-
-
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -242,7 +243,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
     data = simData['eta'].squeeze()[cutRampingTime:,:]
 
     time = []
@@ -253,7 +253,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
     nSubSample = 5
 
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
@@ -285,7 +285,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 #    bottomIn = -bottomIn
 
                 #shoreline= np.where(dataIn > bottomIn)[0][0]
-                #dataIn[:shoreline] = np.nan   #TODO: why do we not use np.nan, masked arrays, or fill values ?
+                #dataIn[:shoreline] = np.nan #TODO: why do we not use np.nan, masked arrays, or fill values ?
                                              #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
 
 
