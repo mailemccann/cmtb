@@ -1,6 +1,6 @@
 """
 This script holds the master function for the simulation Setup
-for the Swash model setup
+for the funwave model setup
 """
 from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools as STPD
@@ -71,7 +71,8 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     #    #raise NotImplementedError('pre-process TS data ')
     #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
+    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases,
+                                          grid=inputDict['modelSettings']['grid'])
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
@@ -106,8 +107,12 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = np.floor(Nglob / 150)
     if px > 48:  # hard coded for Crunchy
         px = 48
-
-    nprocessors = px * py  # now calculated on init
+    if version_prefix == 'freq':
+        nprocessors = 48
+        py = 3
+        px = 16
+    else:
+        nprocessors = px * py  # now calculated on init
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
@@ -153,11 +158,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    cutRampingTime = inputDict['modelSettings'].get('spinupTime', 0)  # spinup Time, removes data from output file [in samples]
     Thredds_Base = inputDict.get('netCDFdir', '/thredds_data')
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
     model = inputDict.get('modelName', 'funwave').lower()
+
+
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
@@ -205,8 +213,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-
-
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -237,7 +243,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
     data = simData['eta'].squeeze()[cutRampingTime:,:]
 
     time = []
@@ -248,7 +253,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
     nSubSample = 5
 
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
@@ -280,7 +285,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 #    bottomIn = -bottomIn
 
                 #shoreline= np.where(dataIn > bottomIn)[0][0]
-                #dataIn[:shoreline] = np.nan   #TODO: why do we not use np.nan, masked arrays, or fill values ?
+                #dataIn[:shoreline] = np.nan #TODO: why do we not use np.nan, masked arrays, or fill values ?
                                              #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
 
 
@@ -309,7 +314,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################        Make NETCDF files       ############################################################
     ##################################################################################################################
     ##################################################################################################################
-
+    dt = np.median(np.diff(time)).microseconds / 1000000
     tsTime = np.arange(0, len(simData['time'])*dt, dt)
 
     fldrArch = os.path.join(model, version_prefix)
@@ -341,7 +346,10 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
     if version_prefix == 'freq':
-        fieldOfname = fieldOfname.split('_2')[0] +'_'+ fio.spectra_name.split('.txt')[0]+'.nc'
+        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, os.path.join(fldrArch, datestring),
+                                                        fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0],
+                                                        'Field')
+        # fieldOfname = fieldOfname.split('_2')[0] +'_'+fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0]+'.nc'
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
     # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
     # # make the name of this nc file
