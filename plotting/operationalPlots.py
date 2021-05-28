@@ -930,19 +930,22 @@ def obs_v_mod_subplot(ofname,obs_dict, model_dict):
     width = 14  # figure width
     height = 10  # figure height
 
-    colors = ['r', 'b', 'g', 'c', 'y', 'm']  # line colors for models
-    obslen = len(obs_dict.keys())  # number of obervations (rows in plot)
+    dontPlot = ['time', 'units']  # variables we don't want to plot
+    colors = ['r', 'b', 'g', 'c','magenta','orange']  # line colors for models
+    obslen = len(obs_dict.keys())  # number of observations (rows in plot)
 
     varn = []  # variable list (Hs, waveTm, etc...)
     if not varn:
         varn = list(list(obs_dict.keys()))[0]
 
+    # create ylabel and unit lists
     ylabel = []
-    for temp in obs_dict[varn].keys():  # <-- this loop is for when other variables are used
-        if temp != 'time':
+    for temp in obs_dict[varn].keys():
+        if temp not in dontPlot:
             ylabel.append(temp)
+        elif temp == 'units':
+            units = list(obs_dict[varn][temp].values()) # ylabel unit list
     varlen = len(ylabel)
-    print(varlen)
 
     ## create time series subplot figure
     f, ax = plt.subplots(obslen, varlen, sharex=True, figsize=(width, height))
@@ -950,16 +953,17 @@ def obs_v_mod_subplot(ofname,obs_dict, model_dict):
     ## plot observation time series
     for ii, obs in enumerate(obs_dict.keys()):
         for jj, var in enumerate(obs_dict[obs].keys()):
-            if var != 'time':
-                ax[ii, jj - 1].plot(obs_dict[obs]['time'], obs_dict[obs][var], 'k.')
+            if var not in dontPlot:
+                ax[ii, jj - len(dontPlot)].plot(obs_dict[obs]['time'], obs_dict[obs][var], 'k.')
 
     ## plot Model time series
     for jj, mod in enumerate(model_dict.keys()):
         for ii, obs in enumerate(obs_dict.keys()):
             if obs in model_dict[mod].keys():
                 for kk, var in enumerate(obs_dict[obs]):
-                    if var != 'time':
-                        ax[ii, kk - 1].plot(model_dict[mod][obs]['time'], model_dict[mod][obs][var], colors[jj])
+                    if var not in dontPlot:
+                        ax[ii, kk - len(dontPlot)].plot(model_dict[mod][obs]['time'], model_dict[mod][obs][var],
+                                                        colors[jj])
 
     ## Add station label per row
     station_list = []  # create station name list
@@ -996,7 +1000,7 @@ def obs_v_mod_subplot(ofname,obs_dict, model_dict):
     ## Add Ylabels
     for kk, label in enumerate(ylabel):
         x_coord = 1 / varlen * kk
-        plt.figtext(x_coord, 0.5, label, fontsize=16, rotation='vertical')
+        plt.figtext(x_coord, 0.5, f"{label} ({units[kk]})", fontsize=16, rotation='vertical')
 
     ## save figure
     f.tight_layout()
