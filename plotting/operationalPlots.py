@@ -932,7 +932,7 @@ def obs_v_mod_subplot(ofname,obs_dict, model_dict):
 
     dontPlot = ['time', 'units']  # variables we don't want to plot
     colors = ['r', 'b', 'g', 'c','magenta','orange']  # line colors for models
-    obslen = len(obs_dict.keys())  # number of observations (rows in plot)
+    obslen = len(obs_dict.keys())  # number of obervations (rows in plot)
 
     varn = []  # variable list (Hs, waveTm, etc...)
     if not varn:
