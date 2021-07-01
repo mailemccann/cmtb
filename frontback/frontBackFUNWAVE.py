@@ -239,7 +239,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-    fileHandling.makeCMTBfileStructure(path_prefix,date_str=datestring)
+    fileHandling.makeCMTBfileStructure(path_prefix, date_str=datestring)
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
@@ -253,11 +253,11 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
     nSubSample = 5
 
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3)#6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3) #6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
-    HsTS = 4 * np.std(data, axis=0)
+    #HsTS = 4 * np.std(data, axis=0)
 
     #############################################################################################################
     ####################################### loop over tS plt ####################################################
@@ -346,9 +346,13 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
     if version_prefix == 'freq':
-        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, os.path.join(fldrArch, datestring),
-                                                        fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0],
+        if 'phase' in fio.spectra_name.split('.txt')[0]:
+            middlePart = fio.spectra_name.split('.txt')[0]
+        else:
+            middlePart = fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0]
+        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, os.path.join(fldrArch, datestring), middlePart,
                                                         'Field')
+
         # fieldOfname = fieldOfname.split('_2')[0] +'_'+fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0]+'.nc'
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
     # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
