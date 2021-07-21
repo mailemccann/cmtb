@@ -81,7 +81,7 @@ def Master_STWAVE_run(inputDict):
     # ______________________________gather all data _____________________________
     if generateFlag == True:
         go = getDataFRF.getObs(projectStart, projectEnd)  # initialize get observation
-        rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
+        rawspec = go.getWaveData(gaugenumber='waverider-26m', spec=True)
         rawWL = go.getWL()
         rawwind = go.getWind(gaugenumber=0)
         loc_dict = go.get_sensor_locations(datafile=FRFgaugelocsFile, window_days=14)

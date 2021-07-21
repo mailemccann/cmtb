@@ -105,7 +105,7 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
     # rotate, time match, interpolate wave spectra
     waveTimeList = sb.createDateList(d1, d2-DT.timedelta(seconds=3600), DT.timedelta(seconds=3600)) # time match list
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full,
-                                    outputPath=path_prefix, waveTimeList=waveTimeList)
+                                    outputPath=os.path.join(path_prefix, dateString), waveTimeList=waveTimeList)
     print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0],
                                                                      sum(wavepacket['flag'])))
     # ____________ BATHY ______________________
@@ -162,9 +162,10 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
     for _, gauge in enumerate(['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                                 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']):
         ii = np.argwhere(gauge == dataLocations['Sensor']).squeeze()
-        coord = gp.FRFcoord(dataLocations['Lon'][ii], dataLocations['Lat'][ii], coordType='LL')
-        print(' save point added: {} at xFRF {:.1f} yFRF {:.1f}'.format(gauge, coord['xFRF'], coord['yFRF']))
-        statloc.append([coord['StateplaneE'], coord['StateplaneN']])
+        if np.size(ii) > 0:
+            coord = gp.FRFcoord(dataLocations['Lon'][ii], dataLocations['Lat'][ii], coordType='LL')
+            print(' save point added: {} at xFRF {:.1f} yFRF {:.1f}'.format(gauge, coord['xFRF'], coord['yFRF']))
+            statloc.append([coord['StateplaneE'], coord['StateplaneN']])
     statloc = np.array(statloc)
 
     #old way to grab gauge data
@@ -184,7 +185,7 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
         whichpointsy = np.linspace(gridNodesNested['yFRF'][0], gridNodesNested['yFRF'][-1], numNest)
         nestLocDict = {} #initalize nesting output locations
         for key in whichpointsy:
-            nestLocDict[key]= {'xFRF': gridNodesNested['xFRF'].max(),'yFRF':key}
+            nestLocDict[key] = {'xFRF': gridNodesNested['xFRF'].max(),'yFRF':key}
     else:
         nestLocDict = False
     ###################################################################################################################
