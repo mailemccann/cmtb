@@ -3,8 +3,85 @@ from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib import image, tri
 import matplotlib.dates as mdates
+import matplotlib.image as image
+import os, math
+from scipy.interpolate import interpn, RectBivariateSpline
+from getdatatestbed.getDataFRF import getObs
+from testbedutils import sblib as sb
+from testbedutils.anglesLib import vectorRotation
+import cartopy.crs as ccrs
 import os, pandas
 from testbedutils.sblib import statsBryant
+
+def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
+    """Plots unstructured data from open netCDF file
+    
+    Args:
+        plotFname: output plot file name
+        ncfile: open netCDF file
+        variables: single variable to plot in the netCDF file with attributes 'short_name' and 'units'
+    
+    Keyword Args:
+        'bottomLeft': tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.758986, 36.173927))
+        'topRight':  tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.743879, 36.190276))
+    
+    Returns:
+        None
+        
+    """
+    from matplotlib import tri
+    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+    timeIDX = kwargs.get('timeIdx', slice)
+    lon, lat = fieldNc['longitude'][:], fieldNc['latitude'][:]
+    value = fieldNc[variable][timeIDX, :]
+    bathy = fieldNc['bathymetry'][timeIDX]
+    title = fieldNc[variable].short_name
+    axisLabel = title + ' [{}]'.format(fieldNc['waveHs'].units)
+    figsize = (16, 6)
+    ######### pre process
+    triang = tri.Triangulation(lon, lat)
+    
+    # take these from data or FRF locations
+    zoomBL = kwargs.get('bottomLeft', (-75.758986, 36.173927))
+    zoomTR = kwargs.get('topRight', (-75.743879, 36.190276))
+    ###########################
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=figsize, subplot_kw=dict(projection=ccrs.PlateCarree()))
+    ####
+    axis = 0  # first subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    lines = ax[axis].triplot(triang, linestyle='-', lw=1, alpha=0.35, color='darkgray', zorder=1)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    ax[axis].set_title('Mesh', fontsize=12)
+    
+    ####
+    axis = 1  #2nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    ####
+    axis = 2  #3nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 5, 10, 15, 20])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    for axis in range(0, len(ax)):
+        print(axis)
+        gl = ax[axis].gridlines(draw_labels=True)
+        gl.top_labels= gl.right_labels = False
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+    
+        plt.tight_layout()
+        plt.savefig(outFname)
 
 
 # these are all the ones that were formerly in plotFunctions.py
@@ -51,8 +128,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     pltrawdWED = rawdwed  # [zz, :, :]
     pltrotdWED = rot_dWED  # [zz, :, :]
     pltintdWED = interp_dWED  # [zz, :, :]
-    # now set the interpd dwed based oon full or half plane
-
+    # now set the interpd dwed based on full or half plane
 
     # getting proper colorbars and labels forthe contour plots
     cbar_min = np.nanmin(pltrawdWED)
@@ -62,12 +138,15 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     from matplotlib import colors
     norm = colors.LogNorm()  # mc.BoundaryNorm(levels, 256)  # color palate for contourplots
 
+    from pandas.plotting import register_matplotlib_converters
+    register_matplotlib_converters()
     # generating plot to compare input data
     fig = plt.figure(figsize=(12, 8.), dpi=80)
     fig.suptitle('Input Spectra to Wave Model at %s' % time,
                  fontsize='14', fontweight='bold', y=.975)
     # subplot 0 - wave height tracer
-    sub0 = fig.add_subplot(2, 1, 1)
+    # sub0 = fig.add_subplot(2, 1, 1)
+    sub0 = plt.subplot2grid((4, 3), (0, 0), colspan=3, rowspan=2)
     sub0.plot(timeTS, HsTs, 'b-')
     sub0.plot(time, HsInd, 'r*', markersize=10)
 
@@ -75,7 +154,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     sub0.set_xlabel('time')
 
     # subplot 1 - measured spectra
-    sub1 = fig.add_subplot(2, 3, 4)
+    # sub1 = fig.add_subplot(2, 3, 4)
+    sub1 = plt.subplot2grid((4,3), (2,0), rowspan=2, colspan=1)
     sub1.set_title('Measured Spectra', y=1.05)
     aaa = sub1.contourf(rawFreqBin, rawDirBin, pltrawdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
@@ -94,7 +174,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     aaaa = plt.colorbar(aaa, format='%.1f')
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 2
-    sub2 = fig.add_subplot(2, 3, 5)
+    # sub2 = fig.add_subplot(2, 3, 5)
+    sub2 = plt.subplot2grid((4,3), (2,1), rowspan=2)
     sub2.set_title('Inverted Direction &\nShore Normal Sepectra', y=1.05)
     if full == False:
         bounds = [90, 270]
@@ -112,7 +193,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     bbbb = plt.colorbar(bbb, format='%.1f')
     bbbb.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 3
-    sub3 = fig.add_subplot(2, 3, 6)
+    sub3 = plt.subplot2grid((4,3), (2,2), rowspan=2)
     sub3.set_title('Centered Input Spectra', y=1.05)
     ccc = sub3.contourf(interpFreqBin, interpDirBin, pltintdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
@@ -386,16 +467,20 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
         plt.close()
 
 def plotWaveProfile(x, waveHs, bathyToPlot, fname):
-    """
-    This function will plot the Cross shore Wave profile at the FRF Xshore array
-    :param waveHs: a 2 dimensional array of wave height
-    :param x: the x coordinates of the plot
-    :param yLocation: the location (in STWAVE longshore coord)
-    of the profile of wave height to be tak en  default 142, is
-    the nested grid of the xshore array
-    :param bathyField: this is a 2 dimensional array of bathymetry with Positive up
+    """This function will plot the Cross shore Wave profile at the FRF Xshore array
 
-    :return: a saved plot
+    Args:
+      waveHs: a 2 dimensional array of wave height
+      x: the x coordinates of the plot
+      yLocation: the location (in STWAVE longshore coord)
+          of the profile of wave height to be tak en  default 142, is the nested grid of the xshore array
+      bathyField: this is a 2 dimensional array of bathymetry with Positive up
+      bathyToPlot:
+      fname:  output file name
+
+    Returns:
+      a saved plot
+
     """
     profileToPlot = waveHs
     # if bathyField.ndim == 3:
@@ -421,36 +506,36 @@ def plotWaveProfile(x, waveHs, bathyToPlot, fname):
     plt.close()
 
 
-# these are all the ones that were formerly in CSHORE_plotLib
-def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
-    """
-    This script basically just compares two time series, under
-        the assmption that one is from the model and one a set of observations
+def adjust_plot_ticks(p_dict):
+    """ This scripts adjusts the axis scale factor of the time series plot in obs_v_mod_ts.
 
-    :param  file_path: this is the full file-path (string) to the location where the plot will be saved
-    :param p_dict: has 6 keys to it.
-        (1) a vector of datetimes ('time')
-        (2) vector of observations ('obs')
-        (3) vector of model data ('model')
-        (4) variable name (string) ('var_name')
-        (5) variable units (string!!) ('units') -> this will be put inside a tex math environment!!!!
-        (6) plot title (string) ('p_title')
-    :return: a model vs. observation time-series plot'
-        the dictionary of the statistics calculated
+           Args:
 
-    """
-    # this function plots observed data vs. model data for time-series data and computes stats for it.
+            p_dict: has 6 keys to it.
+              'time':  a vector of datetimes
 
-    assert len(p_dict['time']) == len(p_dict['obs']) == len(p_dict['model']), "Your time, model, and observation arrays are not all the same length!"
-    assert sum([isinstance(p_dict['time'][ss], DT.datetime) for ss in range(0, len(p_dict['time']))]) == len(p_dict['time']), 'Your times input must be an array of datetimes!'
+              'obs':  vector of observations
+
+              'model': vector of model data
+
+              'var_name' (str): variable name
+
+              'units' (str): variable units -> this will be put inside a tex math environment!!!!
+
+              'p_title' (str): plot title"""
+
+    assert len(p_dict['time']) == len(p_dict['obs']) == len(
+        p_dict['model']), "Your time, model, and observation arrays are not all the same length!"
+    assert sum([isinstance(p_dict['time'][ss], DT.datetime) for ss in range(0, len(p_dict['time']))]) == len(
+        p_dict['time']), 'Your times input must be an array of datetimes!'
     # calculate total duration of data to pick ticks for Xaxis on time series plot
     totalDuration = p_dict['time'][-1] - p_dict['time'][0]
     if totalDuration.days > 365:  # this is a year +  of data
         # mark 7 day increments with monthly major lables
-        majorTickLocator = mdates.MonthLocator(interval=3) # every 3 months
-        minorTickLocator = mdates.AutoDateLocator() # DayLocator(7)
+        majorTickLocator = mdates.MonthLocator(interval=3)  # every 3 months
+        minorTickLocator = mdates.AutoDateLocator()  # DayLocator(7)
         xfmt = mdates.DateFormatter('%Y-%m')
-    elif totalDuration.days > 30: # thie is months of data that is not a year
+    elif totalDuration.days > 30:  # thie is months of data that is not a year
         # mark 12 hour with daily major labels
         majorTickLocator = mdates.DayLocator(1)
         minorTickLocator = mdates.HourLocator(12)
@@ -462,30 +547,36 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
         xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
     else:
         # mark hourly with 6 hour labels major intervals
-        tickInterval = 12  # hours?
+        tickInterval = 6  # hours?
         majorTickLocator = mdates.HourLocator(interval=tickInterval)
         minorTickLocator = mdates.HourLocator(1)
-        xfmt = mdates.DateFormatter('%m/%d\n%H:%M')
-    # DLY notes 12/17/2018 - I think this tick selection section still needs work,
-    # it works fine in some cases but terrible in others
+        xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
 
-    ####################################################################################################################
-    # Begin Plot
-    ####################################################################################################################
-    fig = plt.figure(figsize=(10, 10))
-    if 'p_title' in p_dict.keys():
-        fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
+    return xfmt, minorTickLocator, majorTickLocator
 
-    # time series
-    ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
+
+def determine_axis_scale_factor(p_dict):
+    """ This scripts determines the axis scale factor of the time series plot in obs_v_mod_ts.
+
+       Args:
+
+        p_dict: has 6 keys to it.
+          'time':  a vector of datetimes
+
+          'obs':  vector of observations
+
+          'model': vector of model data
+
+          'var_name' (str): variable name
+
+          'units' (str): variable units -> this will be put inside a tex math environment!!!!
+
+          'p_title' (str): plot title"""
+
+    # determine axis scale factor
     min_val = np.nanmin([np.nanmin(p_dict['obs']), np.nanmin(p_dict['model'])])
     max_val = np.nanmax([np.nanmax(p_dict['obs']), np.nanmax(p_dict['model'])])
-    if min_val < 0 and max_val > 0:
-        ax1.plot(p_dict['time'], np.zeros(len(p_dict['time'])), 'k--')
-    ax1.plot(p_dict['time'], p_dict['obs'], 'r.', label='Observed')
-    ax1.plot(p_dict['time'], p_dict['model'], 'b.', label='Model')
-    ax1.set_ylabel('%s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
-    # determine axis scale factor
+
     if min_val >= 0:
         sf1 = 0.9
     else:
@@ -494,24 +585,145 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
         sf2 = 1.1
     else:
         sf2 = 0.9
+
+    return min_val, max_val, sf1, sf2
+
+
+def plot_string_message(p_dict, stats_dict):
+    """ This script creates the statistics string used for the one:one plot in obs_v_mod_ts
+
+       Args:
+
+        p_dict: has 6 keys to it.
+          'time':  a vector of datetimes
+
+          'obs':  vector of observations
+
+          'model': vector of model data
+
+          'var_name' (str): variable name
+
+          'units' (str): variable units -> this will be put inside a tex math environment!!!!
+
+          'p_title' (str): plot title"""
+
+
+    header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
+    m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
+    o_mean_str = '\n Observation Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['o_mean']), p_dict['units'])
+    bias_str = '\n Bias $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['bias']), p_dict['units'])
+    RMSE_str = '\n RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSE']), p_dict['units'])
+    SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
+    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
+    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
+    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
+    num_String = '\n Number of samples $= %s$' % len(stats_dict['residuals'])
+    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + SI_str + sym_slp_str + corr_coef_str + RMSE_Norm_str + num_String
+
+    return plot_str, header_str
+
+def statistics_dictionary_p_dict(p_dict):
+    """ This script calls statsBryant function and creates stats_dict (used in obs_v_mod_ts,
+     obs_v_mod_bathy, and obs_v_mod_bathy_TN)
+
+     Args:
+
+      p_dict: has 6 keys to it.
+        'time':  a vector of datetimes
+
+        'obs':  vector of observations
+
+        'model': vector of model data
+
+        'var_name' (str): variable name
+
+        'units' (str): variable units -> this will be put inside a tex math environment!!!!
+
+        'p_title' (str): plot title"""
+
+    stats_dict = {}
+    if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
+        p_dict['obs'] = np.array(p_dict['obs'])
+    stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
+    stats_dict['m_mean'] = np.nanmean(p_dict['model'])
+    stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
+    del stats_dict['meta']  # remove meta key from stats_dict
+
+    return stats_dict
+
+
+def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
+    """This script basically just compares two time series, under
+        the assmption that one is from the model and one a set of observations
+
+    Args:
+      file_path: this is the full file-path (string) to the location where the plot will be saved
+      p_dict: has 6 keys to it.
+        'time':  a vector of datetimes
+
+        'obs':  vector of observations
+
+        'model': vector of model data
+
+        'var_name' (str): variable name
+
+        'units' (str): variable units -> this will be put inside a tex math environment!!!!
+
+        'p_title' (str): plot title
+
+      ofname: output file name
+      logo_path: path to a small logo to put at the bottom of the figure (Default value = 'ArchiveFolder/CHL_logo.png')
+
+    Returns:
+      a model vs. observation time-series plot'
+      the dictionary of the statistics calculated
+
+    """
+    # this function plots observed data vs. model data for time-series data and computes stats for it.
+
+    ####################################################################################################################
+    # Begin Plot
+    ####################################################################################################################
+    fig = plt.figure(figsize=(10, 10))
+    fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
+
+    # time series
+    ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
+
+    min_val, max_val, sf1, sf2 = determine_axis_scale_factor(p_dict)
+    xfmt, minorTickLocator, majorTickLocator = adjust_plot_ticks(p_dict)
+
+    if min_val < 0 and max_val > 0:
+        base_date = min(p_dict['time']) - DT.timedelta(
+            seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())
+        base_times = np.array(
+            [base_date + DT.timedelta(seconds=n * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()) for n in
+             range(0, len(p_dict['time']) + 1)])
+        ax1.plot(base_times, np.zeros(len(base_times)), 'k--')
+
+    plt.grid()
+    ax1.scatter(p_dict['time'], p_dict['obs'], s=75, c='r', marker='o', label='Observed')
+    ax1.scatter(p_dict['time'], p_dict['model'], s=75, c='b', marker='o', label='Model')
+    ax1.set_ylabel('%s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+
     ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    ax1.set_xlim([min(p_dict['time']) - DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()),
-                  max(p_dict['time']) + DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())])
+    ax1.set_xlim(
+        [min(p_dict['time']) - DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()),
+         max(p_dict['time']) + DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())])
 
     # this is what you change for time-series x-axis ticks!!!!!
-    #
     # ax1.xaxis.set_major_locator(majorTickLocator)
     # ax1.xaxis.set_minor_locator(minorTickLocator)
     # ax1.xaxis.set_major_formatter(xfmt)
+
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(14)
 
-    ax1.minorticks_off()
     ax1.tick_params(labelsize=14)
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., 0.102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
-    fig.autofmt_xdate()
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
+
     # Now working on the 1-1 comparison subplot
     one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
     ax2 = plt.subplot2grid((2, 2), (1, 0), colspan=1)
@@ -519,7 +731,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
-    ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
+    ax2.scatter(p_dict['obs'], p_dict['model'], s=75, c='r', marker='*')
     ax2.set_xlabel('Observed %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_ylabel('Model %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_xlim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
@@ -531,44 +743,35 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     ax2.tick_params(labelsize=14)
     plt.legend(loc=0, ncol=1, borderaxespad=0.5, fontsize=14)
 
-    # stats and stats text
-    stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
-    stats_dict['m_mean'] = np.nanmean(p_dict['model'])
-    stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
+    stats_dict = statistics_dictionary_p_dict(p_dict)
+    plot_str, header_str = plot_string_message(p_dict, stats_dict)
 
-    header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
-    m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
-    o_mean_str = '\n Observation Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['o_mean']), p_dict['units'])
-    bias_str = '\n Bias $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['bias']), p_dict['units'])
-    RMSE_str = '\n RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSE']), p_dict['units'])
-    SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
-    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
-    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
-    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
-
-    num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
-    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + RMSE_Norm_str + SI_str + sym_slp_str + corr_coef_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
+    ax3.axis('off')
     ax4 = ax3.twinx()
     ax3.axis('off')
-    ax4.axis('off')
+
     try:
-        CHL_logo = image.imread(logo_path)
+        ax4.axis('off')
+        CHL_logo = image.imread(os.path.join(logo_path))
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
         print('Plot generated sans CHL Logo!')
 
+    ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
     ax3.text(0.01, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
 
     fig.subplots_adjust(wspace=0.4, hspace=0.1)
-    # fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
-    fig.savefig(ofname, dpi=300)
+    fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
+    fig.savefig(ofname, dpi=80)
     plt.close()
+
     return stats_dict
+
 
 def bc_plot(ofname, p_dict):
     """
@@ -883,7 +1086,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     plt.legend(loc=0, ncol=1, borderaxespad=0.5, fontsize=14)
 
     # stats and stats text
-    stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
+    #stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
+    stats_dict = statistics_dictionary_p_dict(p_dict)
 
     # volume change, shallow
     index_XXm = np.min(np.argwhere(p_dict[
@@ -1468,6 +1672,193 @@ def als_results(ofname, p_dict, obs_dict):
     fig.savefig(ofname, dpi=300)
     plt.close()
 
+def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
+    """This function is just to remove clutter in my plot functions
+    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
+    If None, it will return masked arrays.
+
+    Args:
+      name: name of the altimeter you want (Alt03, Alt04, Alt05)
+      mod_time: start time of the model
+      time: array of model datetimes
+      mod: array of model observations at that instrument location corresponding to variable "comp_time"
+      mod_times:
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+      Altimeter data dictionary with keys:
+      'zb' - elevation
+
+      'name' - gage name
+
+      'time' - timestamps of the data
+
+      'xFRF' - position of the gage
+
+      'plot_ind' - this just tells it which data point it should plot for the snapshots
+
+    """
+    t1 = mod_times[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = mod_times[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+        dict = {}
+        alt_data = frf_Data.getALT(name)
+        dict['zb'] = alt_data['bottomElev']
+        dict['time'] = alt_data['time']
+        dict['name'] = alt_data['stationName']
+        dict['xFRF'] = round(alt_data['xFRF'])
+        plot_ind = np.where(abs(dict['time'] - mod_time) == min(abs(dict['time'] - mod_time)), 1, 0)
+        dict['plot_ind'] = plot_ind
+        dict['TS_toggle'] = True
+
+
+    except:
+        # just make it a masked array
+        dict = {}
+        comp_time = [mod_times[ii] + (mod_times[ii + 1] - mod_times[ii]) / 2 for ii in range(0, len(mod_times) - 1)]
+        dict['time'] = comp_time
+        fill_x = np.ones(np.shape(dict['time']))
+        dict['zb'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['time'])))
+        dict['name'] = name
+        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
+        fill_ind = np.zeros(np.shape(dict['time']))
+        fill_ind[0] = 1
+        dict['plot_ind'] = fill_ind
+        dict['TS_toggle'] = False
+
+
+    return dict
+
+def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
+    """This function is just to remove clutter in my plotting scripts
+    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
+    If None, it will return masked arrays.
+
+    Args:
+      t1: start time you want to pull (a datetime, not a string)
+      t2: end time you want to pull (a datetime, not a string)
+      name: name of the wave gage you want
+      mod_time: start time of the model
+      time: array of model datetimes
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+      Altimeter data dictionary with keys:
+          'Hs' - significant wave height
+
+          'name' - gage name
+
+          'wave_time' - timestamps of the data
+
+          'xFRF' - position of the gage
+
+          'plot_ind' - this just tells it which data point it should plot for the snapshots
+
+    """
+
+    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+
+        dict = {}
+        wave_data = frf_Data.getWaveSpec(gaugenumber=name)
+        # print(wave_data['time'])
+        dict['name'] = name
+        dict['wave_time'] = wave_data['time']
+        dict['Hs'] = wave_data['Hs']
+        dict['xFRF'] = wave_data['xFRF']
+        dict['plot_ind'] = np.where(abs(dict['wave_time'] - mod_time) == min(abs(dict['wave_time'] - mod_time)), 1, 0)
+        if name in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
+                                'adop-3.5m']:
+            cur_data = frf_Data.getCurrents(name)
+            dict['cur_time'] = cur_data['time']
+            dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
+            # rotate my velocities!!!
+
+            # test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+
+            # troubleshooting the velocity stuff
+            test_fun = lambda x: vectorRotation(x, theta=90 + 71.8)
+
+            newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
+            dict['U'] = np.array(zip(*newV)[0])
+            dict['V'] = np.array(zip(*newV)[1])
+        
+        dict['TS_toggle'] = True
+
+    except:
+        print(('No data at %s!  Will return masked array.') %name)
+        # just make it a masked array
+        dict = {}
+        dict['wave_time'] = time
+        dict['cur_time'] = time
+        fill_x = np.ones(np.shape(dict['wave_time']))
+        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['name'] = 'AWAC8m'
+        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
+        fill_ind = np.zeros(np.shape(dict['wave_time']))
+        fill_ind[0] = 1
+        dict['plot_ind'] = fill_ind
+        dict['plot_ind_V'] = fill_ind
+        dict['U'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['V'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['TS_toggle'] = False
+
+    return dict
+
+def lidar_PlotData(time, THREDDS='FRF'):
+    """
+
+    Args:
+      time:
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+
+    """
+
+    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+        dict = {}
+        lidar_data_RU = frf_Data.getLidarRunup()
+        dict['runup2perc'] = lidar_data_RU['totalWaterLevel']
+        dict['runupTime'] = lidar_data_RU['time']
+        dict['runupMean'] = np.nanmean(lidar_data_RU['elevation'], axis=1)
+
+        lidar_data_WP = frf_Data.getLidarWaveProf()
+        dict['waveTime'] = lidar_data_WP['time']
+        dict['xFRF'] = lidar_data_WP['xFRF']
+        dict['yFRF'] = lidar_data_WP['yFRF']
+        dict['Hs'] = lidar_data_WP['waveHsTotal']
+        dict['WL'] = lidar_data_WP['waterLevel']
+        dict['TS_toggle'] = True
+
+    except:
+        # just make it a masked array
+        dict['runupTime'] = np.zeros(20)
+        fill_x = np.ones(np.shape(dict['runupTime']))
+        dict['runup2perc'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
+        dict['runupMean'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
+        dict['waveTime'] = np.zeros(20)
+        dict['xFRF'] = np.ones(np.shape(dict['waveTime']))
+        dict['yFRF'] = np.ones(np.shape(dict['waveTime']))
+        fill_x = np.ones((np.shape(dict['waveTime'])[0], np.shape(dict['xFRF'])[0]))
+        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
+        dict['WL'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
+        dict['TS_toggle'] = False
+
+    return dict
+
+
 def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.png', contour_s=3, contour_d=8):
     """This is a plot to compare observed and model bathymetry to each other
     
@@ -1920,6 +2311,7 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     if np.median(bottomIn) > 0:
         bottomIn = -bottomIn
     ###########################
+
     plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
     ax1.set_facecolor(skyColor)
