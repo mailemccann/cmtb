@@ -8,6 +8,7 @@ from frontback.frontBackSTWAVE import STanalyze, STsimSetup
 import os, getopt, sys, shutil, glob, platform, logging, yaml
 from testbedutils import fileHandling
 from getdatatestbed import getDataFRF
+import pickle
 
 def Master_STWAVE_run(inputDict):
     """This will run STWAVE with any version prefix given start, end, and timestep
@@ -92,18 +93,20 @@ def Master_STWAVE_run(inputDict):
     # run the process through each of the above dates
     errors, errorDates, curdir = [], [], os.getcwd()
     for time in dateStringList:
-        print(' ------------------------------ START %s --------------------------------' %time)
-
+        # print(' ------------------------------ START %s --------------------------------' %time)
+        #
         try:
             datadir = os.path.join(workingDirectory, ''.join(time.split(':')))  # moving to the new simulation's folder
-            if generateFlag == True:
-                [nproc_par, nproc_nest] = STsimSetup(time, inputDict, rawwind, rawWL, rawspec, bathy, loc_dict)
+            pickleSaveFname = os.path.join(datadir, ''.join(time.split(':')) + '_io.pickle')
 
-                if nproc_par == -1 or nproc_nest == -1:
-                    print('************************\nNo Data available\naborting run\n***********************')
-                    # remove generated files?
-                    shutil.rmtree(os.path.join(workingDirectory,''.join(time.split(':'))))
-                    continue  # this is to return to the next time step if there's no data
+            if generateFlag == True:
+                    nproc_par, nproc_nest, stio = STsimSetup(time, inputDict, rawwind, rawWL, rawspec, bathy)
+                    pickle.dump(stio, open(pickleSaveFname, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+                    if nproc_par == -1 or nproc_nest == -1:
+                        print('************************\nNo Data available\naborting run\n***********************')
+                        # remove generated files?
+                        shutil.rmtree(os.path.join(workingDirectory,''.join(time.split(':'))))
+                        continue  # this is to return to the next time step if there's no data
 
             if runFlag == True:
                 os.chdir(datadir)  # changing locations to where simulation files live
@@ -127,10 +130,13 @@ def Master_STWAVE_run(inputDict):
                             count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
                         child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
                 print(('  Simulations took {:.2f} hours'.format((DT.datetime.now() - t).total_seconds()/3600)))
+                pickle.dump(stio, open(pickleSaveFname, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
             # run analyze and archive script
             os.chdir(curdir)  # change back after runing simulation locally
             if analyzeFlag == True:
-                beachWaves = STanalyze(time, inputDict)
+                if runFlag is False:
+                    stio = pickle.load(open(pickleSaveFname, 'rb'))
+                beachWaves = STanalyze(time, inputDict, stio)
             if pFlag == True and DT.date.today() == endTime.date():
                 print('**\n Moving Plots! \n &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
                 # move files

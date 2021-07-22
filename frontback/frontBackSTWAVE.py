@@ -22,7 +22,7 @@ from testbedutils import sblib as sb
 from testbedutils import fileHandling
 from subprocess import check_output
 
-def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=None):
+def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy):
     """This Function is the master call for the  data preparation for the Coastal Model STWAVE runs.
     
     It is designed to be handed data then utilize prep_datalib for model pre-processing. All Files are labeled by
@@ -34,7 +34,6 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
         allWind(dict): from get data with all wind from entire project set
         allWL(dict): from get data with all waterlevel from entire project set
         allWave(dict): from get data with all wave from entire project set
-        gaugelocs(list): provides save points (lat/lon)
         
     Returns:
         nproc_parent (int): number of processors to run simultion for paret sim, will return -1 if this
@@ -92,7 +91,8 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
     
     # __________________initalize needed classes ___________________________________
     prepdata = STPD.PrepDataTools()
-    stio = inputOutput.stwaveIO('')  # initializing io here so grid text can be written out
+    stio = inputOutput.stwaveIO(os.path.join(path_prefix, dateString))  # initializing io here so grid
+                                                                        # text can be written out
     
     ###################################################################################################################
     #######################   Begin Gathering Data      ###############################################################
@@ -158,7 +158,7 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
     print('  TODO: handle TDS location grabber')
     dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-    statloc = []
+    savePoints, statloc = [], []
     for _, gauge in enumerate(['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                                 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']):
         ii = np.argwhere(gauge == dataLocations['Sensor']).squeeze()
@@ -166,18 +166,10 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
             coord = gp.FRFcoord(dataLocations['Lon'][ii], dataLocations['Lat'][ii], coordType='LL')
             print(' save point added: {} at xFRF {:.1f} yFRF {:.1f}'.format(gauge, coord['xFRF'], coord['yFRF']))
             statloc.append([coord['StateplaneE'], coord['StateplaneN']])
+            savePoints.append(gauge)
     statloc = np.array(statloc)
-
-    #old way to grab gauge data
-    # statloc =  []
-    # for gauge in list(loc_dict.keys()):
-    #     coords = loc_dict[gauge]
-    #     try:
-    #         statloc.append([coords['spE'], coords['spN']])
-    #     except KeyError:
-    #         continue
-    # statloc = np.array(statloc)
-    
+    stio.savePoints = savePoints
+  
     
     # assign nesting points in i/j grid coordinates
     if runNested is True:
@@ -207,9 +199,10 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
                                 statloc=statloc, full=full)
     else:
         nproc_nest = None
-    return nproc_parent, nproc_nest
+    
+    return nproc_parent, nproc_nest, stio
 
-def STanalyze(startTime, inputDict):
+def STanalyze(startTime, inputDict, stio):
     """the master call for the simulation post process for STWAVE
     plots and netCDF files are made at request
 
@@ -219,6 +212,8 @@ def STanalyze(startTime, inputDict):
         inputDict (dict): dictionary of input parameters read in by input file
         startTime (str):  a string that has date in it by which the
             end of the run is designated ex: '2015-12-25T00:00:00Z'
+        stio(obcect): initalized class for model setup (with metadata and save points)
+
     Returns:
           None
 
@@ -226,7 +221,7 @@ def STanalyze(startTime, inputDict):
     # ___________________ Unpack input dictionary _________________________________
     plotFlag = inputDict.get('plotFlag', True)
     model = inputDict.get('model', 'stwave')
-    version_prefix = inputDict['modelSettings']['version_prefix']
+    version_prefix = inputDict['modelSettings']['version_prefix'].lower()
     path_prefix = inputDict.get('path_prefix', "{}".format(version_prefix))
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
@@ -254,7 +249,7 @@ def STanalyze(startTime, inputDict):
     #################################################################################################
     #################################################################################################
 
-    stio = stwaveIO(fpath)  # =pathbase) looks for model output files in folder to analyze
+    # stios = stioR.stwaveIO(fpath)  # =pathbase) looks for model output files in folder to analyze
     assert len(stio.obsefname) != 0, 'There are no data to load for %s' %startTime
     print('Loading Statistic Files ....')
     d = DT.datetime.now()  # for data load timing
@@ -277,7 +272,7 @@ def STanalyze(startTime, inputDict):
         # correct angles
         modelpacket_nest['WaveDm'] = anglesLib.angle_correct(modelpacket_nest['WaveDm'])
         modelpacket_nest['Udir'] = anglesLib.angle_correct(modelpacket_nest['Udir']) # wind direction
-    except IndexError:
+    except (IndexError, FileNotFoundError):
         nest = 0
     # Load Spectral Data sets
     obse_packet = stio.obseload(nested=False)
@@ -317,14 +312,12 @@ def STanalyze(startTime, inputDict):
     print('  ..begin loading spatial files ....')
     dep_pack = prepdata.GetOriginalGridFromSTWAVE(stio.simfname[0], stio.depfname[0])
     Tp_pack = stio.genLoad(nested=False, key='waveTp')
-    # Tp_pack = stio.TPload(nested=0)     # this function is currently faster than genLoad (a generalized load function)
     wave_pack = stio.genLoad(nested=False, key='wave')
     if runNested:
         rad_nest = stio.genLoad('rad', nested=True)
         break_nest = stio.genLoad('break', nested=True)
         dep_nest = prepdata.GetOriginalGridFromSTWAVE(stio.simfname_nest[0], stio.depfname_nest[0])
         Tp_nest = stio.genLoad(key='waveTp', nested=True)
-        # wave_pack2 = stio.genLoad('wave', nested=False)
         wave_nest = stio.genLoad(key='wave', nested=True)
     
     print('Files loaded, in %s ' %(DT.datetime.now() - d))
@@ -509,8 +502,8 @@ def STanalyze(startTime, inputDict):
 
     cmtbLocalFldrArch = os.path.join(model, version_prefix)
     varYml = 'yaml_files/waveModels/{}/Field_var.yml'.format(model)
-    regGlobYml = 'yaml_files/waveModels/{}/{}/Field_Regional_{}_globalmeta.yml'.format(model, version_prefix,
-                                                                                       version_prefix)
+    regGlobYml = 'yaml_files/waveModels/{}/{}/Field_Regional_{}_globalmeta.yml'.format(model, version_prefix.lower(),
+                                                                                       version_prefix.lower())
     outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, cmtbLocalFldrArch, dateString, 'Regional-Field')
     assert os.path.isfile(regGlobYml), 'NetCDF yaml files are not created'
     makenc.makenc_field(data_lib=regionalDataLib, globalyaml_fname=regGlobYml, flagfname=flagfname,
@@ -571,7 +564,7 @@ def STanalyze(startTime, inputDict):
         RegionalStations = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                             'adop-3.5m', 'xp200m', 'xp150m', 'xp125m'] # where :'s are for sims in the nested
     # writing station files from regional/parent simulation
-    for gg, station in enumerate(RegionalStations):
+    for gg, station in enumerate(stio.savePoints):
         if station != ':':
             # getting lat lon
             coords = gp.FRFcoord(stat_packet['Easting'][0, gg], stat_packet['Northing'][0, gg])
@@ -583,13 +576,13 @@ def STanalyze(startTime, inputDict):
                 'waveTp': stat_packet['Tp'][:, gg],
                 'waterLevel': stat_packet['WL'][:, gg],
                 'Umag': stat_packet['Umag'][:, gg],
-                'Udir': stat_packet['Udir'][:, gg ],
-                'Northing' : stat_packet['Northing'][0, gg],
+                'Udir': stat_packet['Udir'][:, gg],
+                'Northing': stat_packet['Northing'][0, gg],
                 'Easting': stat_packet['Easting'][0, gg],
-                'Latitude' : coords['Lat'],
-                'Longitude' : coords['Lon'],
+                'Latitude': coords['Lat'],
+                'Longitude': coords['Lon'],
                 'station_name': station,
-                'directionalWaveEnergyDensity': obse_packet['ncSpec'][:,gg,:,:],
+                'directionalWaveEnergyDensity': obse_packet['ncSpec'][:, gg, :, :],
                 'waveDirectionBins': obse_packet['ncDirs'],
                 'waveFrequency': obse_packet['Frequencies'],
                 'DX': dep_pack['DX'],
@@ -611,90 +604,92 @@ def STanalyze(startTime, inputDict):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     ## COLLECT  ALL data (process, rotate, time pair and make comparison plots)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    go=getDataFRF.getObs(startTime, endTime)
-    if plotFlag == True and np.size(stat_packet['time']) > 1:
-        from testbedutils import waveLib as sbwave
-        print('  Plotting Time Series Data ')
-        stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
-        for gg, station in enumerate(stationList):
-            print('working on %s' %station)
-            # go get comparison data
-            w = go.getWaveSpec(station)
-            if w is not None and 'time' in w:  # if there's data (not only location)
-                if station in go.directionalWaveGaugeList:
-                    if full == False and station in go.directionalWaveGaugeList:
-                        w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=angadj)
-                    obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
-                else: # calc non directionalWaveGaugeList stats
-                    obsStats = sbwave.stats1D(w['fspec'], w['wavefreqbin'])
-                
-                if station in ['waverider-17m', 'awac-11m', 'waverider-26m']:
-                    modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['Frequencies'],
-                                               obse_packet['ncDirs'])  # compute model stats here
-                else:
-                    if runNested is True:
-                        modStats = sbwave.waveStat(obse_nested['ncSpec'][:, gg, :, :], obse_nested['Frequencies'],
-                                               obse_nested['ncDirs'])  # compute model stats here
-
-                # time match data
-                time, obsi, modi = sb.timeMatch(w['epochtime'],
-                                                np.arange(w['time'].shape[0]),
-                                                nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
-                                                np.arange(len(stat_packet['time']))) # time match
-                # don't plot if theres only 1 dot on the plot... save time
-                if station in go.directionalWaveGaugeList:
-                    plotList = ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']
-                else:
-                    plotList = ['Hm0', 'Tm', 'sprdF', 'Tp']
-                for param in modStats:
-                    if np.size(obsi) > 1 and np.size(modi) > 1 and param in plotList:
-                        if param in ['Tm', 'Tp', 'Tm10', 'Tave']:
-                            units = 's'
-                            title = '%s period' % param
-                        elif param in ['Hm0']:
-                            units = 'm'
-                            title = 'Wave Height %s ' %param
-                        elif param in ['Dm', 'Dmp', 'Dp']:
-                            units = 'degrees'
-                            title = 'Direction %s' %param
-                        elif param in ['sprdF']:
-                            title = 'Spread %s' % param
-                            units = 'Hz'
-                        elif param in ['sprdD']:
-                            units = 'degrees'
-                            title = 'Spread %s ' % param
-
-                        ofname = os.path.join(path_prefix, dateString,
-                                  'figures/CMTB-waveModels_{}_{}_station_{}_{}_{}.png'.format(model, version_prefix,
-                                                                                            station, param, dateString))
-                        print('plotting ' + ofname)
-                        dataDict = {'time': nc.num2date(time, 'seconds since 1970-01-01',
-                                                        only_use_cftime_datetimes=False),
-                                    'obs': obsStats[param][obsi.astype(np.int)],
-                                    'model': modStats[param][modi.astype(np.int)],
-                                    'var_name': param,
-                                    'units': units,
-                                    'p_title': title}
-                        oP.obs_V_mod_TS(ofname, dataDict, logo_path='ArchiveFolder/CHL_logo.png')
-                        if station == 'waverider-26m' and param == 'Hm0':
-                            print('   skipping boundary spectral comparison')
-                            continue
-                            # this is a fail safe to abort run if the boundary conditions don't
-                            # meet quality standards below
-                            bias = 0.1  # bias has to be within 10 centimeters
-                            RMSE = 0.1  # RMSE has to be within 10 centimeters
-                            if isinstance(dataDict['obs'], np.ma.masked_array) and ~dataDict['obs'].mask.any():
-                                dataDict['obs'] = np.array(dataDict['obs'])
-                            stats = sb.statsBryant(dataDict['obs'], dataDict['model'])
-                            try:
-                                assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
-                                assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
-                            except:
-                                print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
-                                print('deleting data from thredds!')
-                                # os.remove(fieldOfname)
-                                os.remove(outFileName)
-                                raise RuntimeError('The Model Is not validating its offshore boundary condition')
+    # go = getDataFRF.getObs(startTime, endTime)
+    # if plotFlag == True and np.size(stat_packet['time']) > 1:
+    #     from testbedutils import waveLib as sbwave
+    #     print('  Plotting Time Series Data ')
+    #     stationList = stio.savePoints
+    #     #['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
+    #      #               'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
+    #     for gg, station in enumerate(stationList):
+    #         print('working on %s' %station)
+    #         # go get comparison data
+    #         w = go.getWaveData(station, spec=True)
+    #         if w is not None and 'time' in w:  # if there's data (not only location)
+    #             if station in go.directionalWaveGaugeList:
+    #                 if full == False and station in go.directionalWaveGaugeList:
+    #                     w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=angadj)
+    #                 obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
+    #             else: # calc non directionalWaveGaugeList stats
+    #                 obsStats = sbwave.stats1D(w['fspec'], w['wavefreqbin'])
+    #
+    #             if station in ['waverider-17m', 'awac-11m', 'waverider-26m']:
+    #                 modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['Frequencies'],
+    #                                            obse_packet['ncDirs'])  # compute model stats here
+    #             else:
+    #                 if runNested is True:
+    #                     modStats = sbwave.waveStat(obse_nested['ncSpec'][:, gg, :, :], obse_nested['Frequencies'],
+    #                                            obse_nested['ncDirs'])  # compute model stats here
+    #
+    #             # time match data
+    #             time, obsi, modi = sb.timeMatch(w['epochtime'],
+    #                                             np.arange(w['time'].shape[0]),
+    #                                             nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
+    #                                             np.arange(len(stat_packet['time']))) # time match
+    #             # don't plot if theres only 1 dot on the plot... save time
+    #             if station in go.directionalWaveGaugeList:
+    #                 plotList = ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']
+    #             else:
+    #                 plotList = ['Hm0', 'Tm', 'sprdF', 'Tp']
+    #             for param in modStats:
+    #                 if np.size(obsi) > 1 and np.size(modi) > 1 and param in plotList:
+    #                     if param in ['Tm', 'Tp', 'Tm10', 'Tave']:
+    #                         units = 's'
+    #                         title = '%s period' % param
+    #                     elif param in ['Hm0']:
+    #                         units = 'm'
+    #                         title = 'Wave Height %s ' %param
+    #                     elif param in ['Dm', 'Dmp', 'Dp']:
+    #                         units = 'degrees'
+    #                         title = 'Direction %s' %param
+    #                     elif param in ['sprdF']:
+    #                         title = 'Spread %s' % param
+    #                         units = 'Hz'
+    #                     elif param in ['sprdD']:
+    #                         units = 'degrees'
+    #                         title = 'Spread %s ' % param
+    #
+    #                     ofname = os.path.join(path_prefix, dateString,
+    #                               'figures/CMTB-waveModels_{}_{}_station_{}_{}_{}.png'.format(model, version_prefix,
+    #                                                                                         station, param, dateString))
+    #                     print('plotting ' + ofname)
+    #                     dataDict = {'time': nc.num2date(time, 'seconds since 1970-01-01',
+    #                                                     only_use_cftime_datetimes=False),
+    #                                 'obs': obsStats[param][obsi.astype(np.int)],
+    #                                 'model': modStats[param][modi.astype(np.int)],
+    #                                 'var_name': param,
+    #                                 'units': units,
+    #                                 'p_title': title}
+    #                     oP.obs_V_mod_TS(ofname, dataDict, logo_path='ArchiveFolder/CHL_logo.png')
+    #                     if station == 'waverider-26m' and param == 'Hm0':
+    #                         print('   skipping boundary spectral comparison')
+    #                         continue
+    #                         # this is a fail safe to abort run if the boundary conditions don't
+    #                         # meet quality standards below
+    #                         bias = 0.1  # bias has to be within 10 centimeters
+    #                         RMSE = 0.1  # RMSE has to be within 10 centimeters
+    #                         if isinstance(dataDict['obs'], np.ma.masked_array) and ~dataDict['obs'].mask.any():
+    #                             dataDict['obs'] = np.array(dataDict['obs'])
+    #                         stats = sb.statsBryant(dataDict['obs'], dataDict['model'])
+    #                         try:
+    #                             assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
+    #                             assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
+    #                         except:
+    #                             print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
+    #                             print('deleting data from thredds!')
+    #                             # os.remove(fieldOfname)
+    #                             os.remove(outFileName)
+    #                             raise RuntimeError('The Model Is not validating its offshore boundary condition')
     # writing data out for UQ effort. Starting with parent domain (can complicate further as necessary)
     outData = regionalDataLib
     return outData
