@@ -16,6 +16,7 @@ import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
 from testbedutils import fileHandling
+from testbedutils import timeDomain
 from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 import multiprocessing
@@ -62,14 +63,6 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     print('_________________\nGetting Wave Data')
     assert 'time' in rawspec, "\n++++\nThere's No Wave data"
     # preprocess wave spectra
-
-
-    #if version_prefix.lower() == 'base':
-    #   wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-    #else:
-    #    #raise NotImplementedError('pre-process TS data ')
-    #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
     wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases,
                                           grid=inputDict['modelSettings']['grid'])
@@ -185,8 +178,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################################################################################################################
     ######################################################################################################################
 
-    outputFolder = os.path.join(fpath,'output')
-    print('Loading files ',outputFolder)
+    outputFolder = os.path.join(fpath, 'output')
+    print('Loading files ', outputFolder)
 
     ## upload depth file
     depthFile = os.path.join(outputFolder, 'dep.out')
@@ -216,34 +209,36 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
-    r_depth = 0.08  # 4.0 * np.nanmax(np.abs(h[runupInd][1:] - h[runupInd][:-1]))
-
+    # r_depth = 0.08  # 4.0 * np.nanmax(np.abs(h[runupInd][1:] - h[runupInd][:-1]))
     # Preallocate runup variable
-    runup = np.zeros(eta.shape[0])
-    x_runup = np.zeros_like(runup)
+    # runup = np.zeros(eta.shape[0])
+    # x_runup = np.zeros_like(runup)
+    #
+    # for aa in range(runup.shape[0]):
+    #     # Water depth
+    #     wdepth = eta[aa, :] + simData['elevation']
+    #     # Find the runup contour (search from left to right)
+    #     wdepth_ind = np.argmin(abs(wdepth - r_depth))  # changed from Chuan's original code
+    #     # Store the water surface elevation in matrix
+    #     runup[aa] = eta[aa, wdepth_ind]  # unrealistic values for large r_depth
+    #     # runup[aa]= -h[wdepth_ind]
+    #     # Store runup position
+    #     x_runup[aa] = simData['xFRF'][wdepth_ind]
+    # maxRunup = np.amax(runup)
 
-    for aa in range(runup.shape[0]):
-        # Water depth
-        wdepth = eta[aa, :] + simData['elevation']
-        # Find the runup contour (search from left to right)
-        wdepth_ind = np.argmin(abs(wdepth - r_depth))  # changed from Chuan's original code
-        # Store the water surface elevation in matrix
-        runup[aa] = eta[aa, wdepth_ind]  # unrealistic values for large r_depth
-        # runup[aa]= -h[wdepth_ind]
-        # Store runup position
-        x_runup[aa] = simData['xFRF'][wdepth_ind]
-    maxRunup = np.amax(runup)
-
+    runupTS, x_runup, r_depth = timeDomain.runup_func(eta, Depth1D, simData['xFRF'], r_depth=0.1)
+    r2, peaks, maxSetup = timeDomain.identifyR2(runupTS, percentile=2)
+    r2 = r2 + simMeta['WL']
     ######################################################################################################################
     ######################################################################################################################
     ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-    fileHandling.makeCMTBfileStructure(path_prefix,date_str=datestring)
+    fileHandling.makeCMTBfileStructure(path_prefix, date_str=datestring)
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    data = simData['eta'].squeeze()[cutRampingTime:,:]
+    data = simData['eta'].squeeze()[cutRampingTime:, :]
 
     time = []
     for i in range(len(simData['time'].squeeze()[cutRampingTime:])): ## change time from float to datetime
@@ -253,7 +248,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
     nSubSample = 5
 
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3)#6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3) #6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
@@ -264,6 +259,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     #############################################################################################################
     WL = simMeta['WL'] #added in editing, should possibly be changed?
     setup = np.mean(simData['eta'] + WL, axis=0).squeeze()
+    
     if plotFlag == True:
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
@@ -329,8 +325,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'waveHsIG': np.expand_dims(IGstats['Hm0'], axis=0),
                'elevation': np.expand_dims(simData['elevation'], axis=0),
                'eta': np.expand_dims(simData['eta'], axis=0),
-               'totalWaterLevel': maxRunup,
-               'totalWaterLevelTS': np.expand_dims(runup, axis=0),
+               'totalWaterLevel': r2,
+               'totalWaterLevelTS': np.expand_dims(runupTS, axis=0),
                'velocityU': np.expand_dims(simData['velocityU'], axis=0),
                'velocityV': np.expand_dims(simData['velocityV'], axis=0),
                'waveHs': np.expand_dims(SeaSwellStats['Hm0'], axis=0),  # or from HsTS??
