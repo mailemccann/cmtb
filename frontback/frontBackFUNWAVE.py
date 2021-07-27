@@ -129,6 +129,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ## write input file
     fio.Write_InputFile(inputDict)
 
+    ## write pbs script for jim
+    walltime = DT.datetime(2021, 1, 1, 6, 0, 0)
+    fio.write_pbs(inputDict, walltime)
+
     #fio.write_bot(gridDict['h'])
     # now write QA/QC flag
     fio.flags = None
