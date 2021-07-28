@@ -1,6 +1,6 @@
 """
 This script holds the master function for the simulation Setup
-for the Swash model setup
+for the funwave model setup
 """
 from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools as STPD
@@ -71,7 +71,8 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     #    #raise NotImplementedError('pre-process TS data ')
     #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
+    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases,
+                                          grid=inputDict['modelSettings']['grid'])
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
@@ -104,13 +105,18 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = 3
     else:
         py = np.floor(Nglob / 150)
-    if px <48:
+    if px > 48:  # hard coded for Crunchy
         px = 48
-    nprocessors = px * py  # now calculated on init
+    if version_prefix == 'freq':
+        nprocessors = 48
+        py = 3
+        px = 16
+    else:
+        nprocessors = px * py  # now calculated on init
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
-                    px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
+                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob)
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
@@ -122,6 +128,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write input file
     fio.Write_InputFile(inputDict)
+
+    ## write pbs script for jim
+    walltime = DT.datetime(2021, 1, 1, 6, 0, 0)
+    fio.write_pbs(inputDict, walltime)
 
     #fio.write_bot(gridDict['h'])
     # now write QA/QC flag
@@ -147,26 +157,25 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         netCDF files to the inputDict['netCDFdir'] directory
 
     """
-    print("check docstrings for Analyze and preprocess")
+    print("TODO: check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    cutRampingTime = inputDict['modelSettings'].get('spinupTime', 0)  # spinup Time, removes data from output file [in samples]
     Thredds_Base = inputDict.get('netCDFdir', '/thredds_data')
-    server = inputDict.get('THREDDS', 'CHL')
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
     model = inputDict.get('modelName', 'funwave').lower()
+
+
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
-    #d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    #d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-
     d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
     d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = path_prefix #os.path.join(path_prefix, datestring)
+    fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
     #_____________________________________________________________________________
@@ -180,7 +189,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################################################################################################################
     ######################################################################################################################
 
-    outputFolder = os.path.join(fpath,fio.ofileNameBase,'output')
+    outputFolder = os.path.join(fpath,'output')
     print('Loading files ',outputFolder)
 
     ## upload depth file
@@ -188,21 +197,26 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     if os.path.exists(depthFile)==True:
         try:
             Depth1D = fio.readasciidepthfile(depthFile)
-        except:
+        except(UnicodeDecodeError):
             Depth1D = fio.readbinarydepthfile(depthFile)
+    elif os.path.exists(os.path.join(fpath, 'depth.txt')):
+        try:
+            Depth1D = fio.readasciidepthfile(os.path.join(fpath, 'depth.txt'))
+        except (OSError):
+            Depth1D = fio.readbinarydepthfile(os.path.join(fpath, 'depth.out'))
     else:
         try:
-            Depth1D = fio.readasciidepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
-        except:
-            Depth1D = fio.readbinarydepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
-
-    simData, simMeta = fio.loadFUNWAVE_stations(Depth1D,fname=outputFolder)  # load all files
+            Depth1D = fio.readasciidepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.txt'))
+        except (OSError):
+            Depth1D = fio.readbinarydepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.out'))
+    try:
+        simData, simMeta = fio.loadFUNWAVE_stations(Depth1D, fname=outputFolder)  # load all files
+    except:
+        simData, simMeta = fio.loadFUNWAVE_stations(Depth1D, fname=fpath)  # load all files
 
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-
-
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -233,8 +247,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    # TODO: @Gaby, these should look familiar! ... yup, It does XD
-    cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
     data = simData['eta'].squeeze()[cutRampingTime:,:]
 
     time = []
@@ -245,7 +257,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
     nSubSample = 5
 
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time), data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
@@ -257,7 +269,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     WL = simMeta['WL'] #added in editing, should possibly be changed?
     setup = np.mean(simData['eta'] + WL, axis=0).squeeze()
     if plotFlag == True:
-        #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
         imgList = glob.glob(os.path.join(fpath,fio.ofileNameBase, 'figures', '*.png'))
@@ -268,23 +279,30 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
             if tidx < np.shape(time)[0]:
 
-                figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
+                figPath = os.path.join(fpath,'figures')
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
 
                 bottomIn = -simData['elevation']
-                dataIn = simData['eta'][tidx].squeeze()
+                dataIn = simData['eta'][tidx].squeeze() #TODO: dataIn is only used for plotting
 
-                if np.median(bottomIn) > 0:
-                    bottomIn = -bottomIn
+                #if np.median(bottomIn) > 0:
+                #    bottomIn = -bottomIn
 
-                shoreline= np.where(dataIn > bottomIn)[0][0]
-                dataIn[:shoreline] = float("NAN")
+                #shoreline= np.where(dataIn > bottomIn)[0][0]
+                #dataIn[:shoreline] = np.nan #TODO: why do we not use np.nan, masked arrays, or fill values ?
+                                             #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
+
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
+
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
         dt = np.median(np.diff(time)).microseconds / 1000000
-        sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        # try:
+        #     sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        # except(ImportError):
+        sb.makegif(imgList, os.path.join(figPath, figureBaseFname + 'TS_{}.gif'.format(datestring)))
+
         tarOutFile = os.path.join(figPath, figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
@@ -300,37 +318,42 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ######################        Make NETCDF files       ############################################################
     ##################################################################################################################
     ##################################################################################################################
-
-    #TODO: @Gaby, the last step, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
-    # as we're going to be doing this for the LAB and it'd be nice to establish the "correct" format right off the
-    # bat here for FUNWAVE, then they can absorb what we generate to implement directly into the model. we have a
-    # tool to make netCDF files and it basically works by taking the model output and putting it into a dictionary.
-    # That dictionary will match the file: yaml_files/waveModels/funwave/funwave_var.yml hand the data to the
-    # function and the global metadata (yaml_files/waveModels/funwave/base/funwave_global.yml) and poof, it makes a
-    # matching netCDF file!  This will be the end of the workflow.
+    dt = np.median(np.diff(time)).microseconds / 1000000
     tsTime = np.arange(0, len(simData['time'])*dt, dt)
 
     fldrArch = os.path.join(model, version_prefix)
+
+    ## filter "NaN" out of eta:
+    nanIndex = np.argwhere(np.isnan(simData['eta']))
+    simData['eta'][nanIndex] = -999.99
+
     spatial = {'time': nc.date2num(d1, units='seconds since 1970-01-01 00:00:00'),
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
-               'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
-               'eta': simData['eta'],
+               'waveHsIG': np.expand_dims(IGstats['Hm0'], axis=0),
+               'elevation': np.expand_dims(simData['elevation'], axis=0),
+               'eta': np.expand_dims(simData['eta'], axis=0),
                'totalWaterLevel': maxRunup,
-               'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),
-               'velocityU': simData['velocityU'],
-               'velocityV': simData['velocityV'],
-               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),  # or from HsTS??
-               'xFRF': simData['xFRF'],
+               'totalWaterLevelTS': np.expand_dims(runup, axis=0),
+               'velocityU': np.expand_dims(simData['velocityU'], axis=0),
+               'velocityV': np.expand_dims(simData['velocityV'], axis=0),
+               'waveHs': np.expand_dims(SeaSwellStats['Hm0'], axis=0),  # or from HsTS??
+               'xFRF': np.expand_dims(simData['xFRF'], axis=0),
                'yFRF': simData['yFRF'][0],
                'runTime': np.expand_dims(fio.simulationWallTime, axis=0),
                'nProcess': np.expand_dims(fio.nprocess, axis=0),
                'DX': np.expand_dims(fio.DX, axis=0),
                'DY': np.expand_dims(fio.DY, axis=0),  # must be adjusted for 2D simulations
-               'NI': np.expand_dims(fio.Mglob, axis=0),
+               'NI': np.expand_dims(len(simData['xFRF']), axis=0),
                'NJ': np.expand_dims(fio.Nglob, axis=0), }  # should automatically adjust for 2D simulations
 
+
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
+    if version_prefix == 'freq':
+        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, os.path.join(fldrArch, datestring),
+                                                        fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0],
+                                                        'Field')
+        # fieldOfname = fieldOfname.split('_2')[0] +'_'+fpath.split('/')[-1] + "_" + fio.spectra_name.split('.txt')[0]+'.nc'
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
     # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
     # # make the name of this nc file

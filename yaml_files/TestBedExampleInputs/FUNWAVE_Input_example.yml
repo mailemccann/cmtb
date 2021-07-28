@@ -21,7 +21,7 @@ modelSettings:
   version_prefix: freq                          # controls switched with int the code
   grid: None
   ensembleNumber: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  # used for 'freq' version_prefix to assign phases
-
+  spinupTime: 0  # this is the number of samples (not time) that will be removed from the simulation output file (default=0)
 # this is the sim files, and plots
 workingDirectory: data/waveModels                                  # REQUIRED usually [cmtbRoot]/data/waveModels
 # this is the base directory where netCDF files are output to,
