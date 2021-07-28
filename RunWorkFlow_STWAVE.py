@@ -130,9 +130,10 @@ def Master_STWAVE_run(inputDict):
                             count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
                         child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
                 print(('  Simulations took {:.2f} hours'.format((DT.datetime.now() - t).total_seconds()/3600)))
+                os.chdir(curdir)  # change back after runing simulation locally
                 pickle.dump(stio, open(pickleSaveFname, 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
             # run analyze and archive script
-            os.chdir(curdir)  # change back after runing simulation locally
+            
             if analyzeFlag == True:
                 if runFlag is False:
                     stio = pickle.load(open(pickleSaveFname, 'rb'))

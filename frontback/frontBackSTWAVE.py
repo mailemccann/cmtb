@@ -268,7 +268,7 @@ def STanalyze(startTime, inputDict, stio):
     try:
         # try to load the nested station file
         modelpacket_nest = stio.statload(nested=1)
-        nest = 1
+        nest = True
         # correct model output angles from STWAVE(+CCW) to Geospatial (+CW)
         modelpacket_nest['WaveDm'] = anglesLib.STWangle2geo(modelpacket_nest['WaveDm'])  # convert STW angles to MET out
         modelpacket_nest['Udir'] = anglesLib.STWangle2geo(modelpacket_nest['Udir'])  # wind dierction
@@ -276,7 +276,7 @@ def STanalyze(startTime, inputDict, stio):
         modelpacket_nest['WaveDm'] = anglesLib.angle_correct(modelpacket_nest['WaveDm'])
         modelpacket_nest['Udir'] = anglesLib.angle_correct(modelpacket_nest['Udir']) # wind direction
     except (IndexError, FileNotFoundError):
-        nest = 0
+        runNested = False
     # Load Spectral Data sets
     obse_packet = stio.obseload(nested=False)
     # creating template for spec to go into netCDF files
@@ -600,6 +600,7 @@ def STanalyze(startTime, inputDict, stio):
             outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, cmtbLocalFldrArch, dateString, 'Field')
             makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname_station, flagfname=flagfname,
                                   ofname=outFileName, stat_yaml_fname=station_var_yaml)
+            print(f' written {outFileName}')
 
     
 
