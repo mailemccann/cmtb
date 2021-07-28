@@ -511,6 +511,8 @@ def STanalyze(startTime, inputDict, stio):
     assert os.path.isfile(regGlobYml), 'NetCDF yaml files are not created'
     makenc.makenc_field(data_lib=regionalDataLib, globalyaml_fname=regGlobYml, flagfname=flagfname,
                         ofname=outFileName, var_yaml_fname=varYml)
+    print(f' written {regionalDataLib}')
+
     ######################################################################################################################
     ######################################################################################################################
     ##################################  Wave Station Files HERE (loop) ###################################################
@@ -556,6 +558,8 @@ def STanalyze(startTime, inputDict, stio):
         assert os.path.isfile(regGlobYml), 'NetCDF yaml files are not created'
         makenc.makenc_field(data_lib=localDataLib, globalyaml_fname=locGlobYml, flagfname=flagfname,
                             ofname=outFileName, var_yaml_fname=varYml)
+        print(f' written {outFileName}')
+
         NestedStations = [':', ':', ':','8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m', ]
         RegionalStations = ['waverider-26m', 'waverider-17m', 'awac-11m', ':', ':', ':', ':', ':', ':', ':'] # where :'s are for sims in the nested
 
@@ -597,7 +601,7 @@ def STanalyze(startTime, inputDict, stio):
             globalyaml_fname_station = 'yaml_files/waveModels/{}/{}/Station_{}_globalmeta.yml'.format(model,
                                                                                       version_prefix, version_prefix)
             station_var_yaml = 'yaml_files/waveModels/{}/Station_Directional_Wave_var.yml'.format(model)
-            outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, cmtbLocalFldrArch, dateString, 'Field')
+            outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, cmtbLocalFldrArch, dateString, station)
             makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname_station, flagfname=flagfname,
                                   ofname=outFileName, stat_yaml_fname=station_var_yaml)
             print(f' written {outFileName}')
