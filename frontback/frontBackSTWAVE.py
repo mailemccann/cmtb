@@ -511,7 +511,7 @@ def STanalyze(startTime, inputDict, stio):
     assert os.path.isfile(regGlobYml), 'NetCDF yaml files are not created'
     makenc.makenc_field(data_lib=regionalDataLib, globalyaml_fname=regGlobYml, flagfname=flagfname,
                         ofname=outFileName, var_yaml_fname=varYml)
-    print(f' written {regionalDataLib}')
+    print(f' written {outFileName}')
 
     ######################################################################################################################
     ######################################################################################################################
