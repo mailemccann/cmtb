@@ -36,6 +36,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # begin by setting up input parameters
     model = inputDict['modelSettings'].get('model')
     grid = inputDict['modelSettings'].get('grid').lower()
+    bathyFlatDistance = inputDict['modelSettings'].get('bathyFlatDistance', 'base')
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -120,10 +121,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],sec_Length=inputDict['modelSettings'].get('secLength', 'base'))
+        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],bathyFlatDistance)
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],sec_Length=inputDict['modelSettings'].get('secLength', 'base'))
+        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],bathyFlatDistance)
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file

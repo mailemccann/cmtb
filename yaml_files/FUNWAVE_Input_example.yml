@@ -23,5 +23,5 @@ modelSettings:
   grid: 1D                                    # grid format (1D or 2D)
   freqList: ['df-0.005000']    #'df-0.00500',
   ensembleNumber: 0,1,2
-  secLength : 3500 # length of offshore extension in meters
+  bathyFlatDistance : 3500 # length of offshore extension in meters
   
