@@ -1,0 +1,27 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+plotFlag: True            # turn plotting on
+generateFlag: True        # generate simulation input files (go get data, process, and write files)
+runFlag: False              # run the simulation
+analyzeFlag: False         # post process simulations (read files, post process data, make netCDF files, plot if desired)
+bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
+########################
+#simulations parameters#
+########################
+startTime: '2018-03-14T00:00:00Z'           # project start time
+endTime:   '2018-03-14T01:00:00Z'           # project End time
+simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
+modelExecutable: /home/number/cmtb/bin/funwave_base   # path to the model
+hostFile: ~/cmtb/hostfile-IB_funwave_3
+########################
+# path stuff           #
+########################
+modelSettings:
+  model: funwave
+  version_prefix: freq                        # controls switched with int the code
+  grid: 1D                                    # grid format (1D or 2D)
+  freqList: ['df-0.005000']    #'df-0.00500',
+  ensembleNumber: 0,1,2
+  secLength : 3500 # length of offshore extension in meters
+  
