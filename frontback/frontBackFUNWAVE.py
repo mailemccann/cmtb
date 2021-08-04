@@ -117,14 +117,14 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
-                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob)
+                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob,bathyFlatDistance=bathyFlatDistance)
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],bathyFlatDistance)
+        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'],bathyFlatDistance)
+        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file

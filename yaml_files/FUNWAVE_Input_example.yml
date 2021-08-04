@@ -9,10 +9,10 @@ bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defa
 ########################
 #simulations parameters#
 ########################
-startTime: '2018-03-14T00:00:00Z'           # project start time
-endTime:   '2018-03-14T01:00:00Z'           # project End time
+startTime: '2018-02-28T00:00:00Z'           # project start time
+endTime:   '2018-02-28T01:00:00Z'           # project End time
 simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
-modelExecutable: /home/number/cmtb/bin/funwave_base   # path to the model
+modelExecutable: /bin/funwave-general   # path to the model
 hostFile: ~/cmtb/hostfile-IB_funwave_3
 ########################
 # path stuff           #
