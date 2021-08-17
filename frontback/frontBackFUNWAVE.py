@@ -36,6 +36,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # begin by setting up input parameters
     model = inputDict['modelSettings'].get('model')
     grid = inputDict['modelSettings'].get('grid').lower()
+    bathyFlatDistance = inputDict['modelSettings'].get('bathyFlatDistance', 'base')
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -116,7 +117,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
-                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob)
+                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob,bathyFlatDistance=bathyFlatDistance)
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
@@ -128,6 +129,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write input file
     fio.Write_InputFile(inputDict)
+
+    ## write pbs script for jim
+    walltime = DT.datetime(2021, 1, 1, 6, 0, 0)
+    fio.write_pbs(inputDict, walltime)
 
     #fio.write_bot(gridDict['h'])
     # now write QA/QC flag
