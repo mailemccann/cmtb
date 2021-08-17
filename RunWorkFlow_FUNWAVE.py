@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
-
 import matplotlib
 # matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
@@ -10,7 +9,7 @@ import numpy as np
 from frontback import frontBackFUNWAVE
 from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
-import pickle5 as pickle
+import pickle
 
 def Master_FUNWAVE_run(inputDict):
     """This function will run FUNWAVE with any version prefix given start, end, and timestep
@@ -68,25 +67,30 @@ def Master_FUNWAVE_run(inputDict):
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
 
 
-    if version_prefix in ['freq']:
+    if version_prefix.lower() in ['freq', 'freq-ee']:
         #load specific date/time of interest
         with open('grids/FUNWAVE/bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
             bathy = pickle.load(fid)
-        with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
-            phases = pickle.load(fid)
-        #freqList = inputDict['modelSettings']['freqList']
-        freqList = inputDict['modelSettings']['freqList']
-        ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
-        # check to make sure keys got into pickle appropriately
-        for dfKey in freqList:
-            if any(phase.startswith(dfKey)for phase in phases.keys()):
-                print('  {} key not in pickle'.format(dfKey))
-            for i in ensembleNumber:
-                if len(phases['phase_{}_{}'.format(dfKey, i)]) == 0:
-                    print('failed phase_{}_{}'.format(dfKey, i))
+        freqList = ['a']
+        ensembleNumber = ['1']
+        if version_prefix.lower() in ['freq']:  # specifically focused on df
+            with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
+                phases = pickle.load(fid)
+            #freqList = inputDict['modelSettings']['freqList']
+            freqList = inputDict['modelSettings']['freqList']
+            ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
+            # check to make sure keys got into pickle appropriately
+            for dfKey in freqList:
+                if any(phase.startswith(dfKey)for phase in phases.keys()):
+                    print('  {} key not in pickle'.format(dfKey))
+                for i in ensembleNumber:
+                    if len(phases['phase_{}_{}'.format(dfKey, i)]) == 0:
+                        print('failed phase_{}_{}'.format(dfKey, i))
 
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+        freqList = ['a']
+        ensembleNumber = ['1']
     if generateFlag is True:
         rawspec = go.getWaveSpec(gaugenumber='8m-array')
         rawWL = go.getWL()
@@ -94,10 +98,9 @@ def Master_FUNWAVE_run(inputDict):
     # _____________________________ RUN LOOP ___________________________________________
     for dfKey in freqList:                      # loop through frequency members
         for enMb in ensembleNumber:           # loop through ensemble members
-            print("_________________________________________________________________")
-            print("  RUNNING {}  with ensemble number {}".format(dfKey, enMb))
-            inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
-            assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
+            if version_prefix.lower() in ['freq']:
+                inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
+                assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
             try:
                 dateString = os.path.join(dateStartList[0].strftime('%Y-%m-%dT%H%M%SZ'),'phase_{}_{}'.format(dfKey, enMb)) #'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
                 fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
@@ -106,7 +109,7 @@ def Master_FUNWAVE_run(inputDict):
 
                 if generateFlag == True:
                     # assigning min/max frequency bands with resolution of df key
-                    inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
+                    if version_prefix in ['freq']: inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
                 if runFlag == True:        # run model
