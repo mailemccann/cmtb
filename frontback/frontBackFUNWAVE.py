@@ -46,7 +46,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     dy = inputDict.get('dy', 0.5)
     nf = inputDict['modelSettings'].get('nf', 100)
     phases = inputDict.get('phases', None)
-    runDuration = inputDict['modelSettings'].get('runDuration', 4200)
+    runDuration = int(inputDict['modelSettings'].get('runDuration', 4200))
     # ______________________________________________________________________________
     # here is where we set something that would handle 3D mode or time series mode, might set flags for preprocessing below
     fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
@@ -108,7 +108,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     if version_prefix.lower().startswith('freq'):
         nprocessors = 48
         py = 1
-        px = 48
+        px = 36
     else:
         nprocessors = px * py  # now calculated on init
 
