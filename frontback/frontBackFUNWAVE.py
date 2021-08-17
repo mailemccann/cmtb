@@ -44,8 +44,9 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     path_prefix = inputDict['path_prefix']  # data super directory
     dx = inputDict.get('dx', 0.5)
     dy = inputDict.get('dy', 0.5)
-    nf = inputDict.get('nf', 100)
+    nf = inputDict['modelSettings'].get('nf', 100)
     phases = inputDict.get('phases', None)
+    runDuration = inputDict['modelSettings'].get('runDuration', 4200)
     # ______________________________________________________________________________
     # here is where we set something that would handle 3D mode or time series mode, might set flags for preprocessing below
     fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
@@ -104,16 +105,17 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = np.floor(Nglob / 150)
     if px > 48:  # hard coded for Crunchy
         px = 48
-    if version_prefix == 'freq':
+    if version_prefix.lower().startswith('freq'):
         nprocessors = 48
-        py = 3
-        px = 16
+        py = 1
+        px = 48
     else:
         nprocessors = px * py  # now calculated on init
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
-                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob,bathyFlatDistance=bathyFlatDistance)
+                    px=px, py=py, nprocessors=nprocessors, Mglob=Mglob, Nglob=Nglob,
+                    bathyFlatDistance=bathyFlatDistance)
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
@@ -124,7 +126,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
-    fio.Write_InputFile(inputDict)
+    fio.Write_InputFile(inputDict, runDuration=runDuration)
 
     ## write pbs script for jim
     walltime = DT.datetime(2021, 1, 1, 6, 0, 0)

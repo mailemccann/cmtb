@@ -111,7 +111,9 @@ def Master_FUNWAVE_run(inputDict):
                     # assigning min/max frequency bands with resolution of df key
                     if version_prefix in ['freq']: inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
-    
+                    with open(pickleSaveFname, 'wb') as fid:
+                        pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
+
                 if runFlag == True:        # run model
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
@@ -134,7 +136,6 @@ def Master_FUNWAVE_run(inputDict):
                         pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
     
                 else:   # assume there is a saved pickle of input/output that was generated before
-
                     with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
                         fIO = pickle.load(fid)
 
