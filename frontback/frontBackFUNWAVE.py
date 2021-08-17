@@ -60,20 +60,16 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     print("OPERATIONAL files will be place in {} folder".format(os.path.join(path_prefix, date_str)))
 
     # _____________WAVES____________________________
-    print('_________________\nGetting Wave Data')
     assert 'time' in rawspec, "\n++++\nThere's No Wave data"
     # preprocess wave spectra
 
-
-    #if version_prefix.lower() == 'base':
-    #   wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-    #else:
-    #    #raise NotImplementedError('pre-process TS data ')
-    #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
+    if version_prefix.lower().endswith('ee'):
+        equalEnergy=True
+    else:
+        equalEnergy=False
+    
     wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases,
-                                          grid=inputDict['modelSettings']['grid'])
+                                          grid=inputDict['modelSettings']['grid'], equalEnergy=equalEnergy)
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
