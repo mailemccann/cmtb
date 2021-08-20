@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
