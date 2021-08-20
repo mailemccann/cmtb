@@ -1,7 +1,7 @@
 # # # # # # # # # # # #
 # Data control        #
 # # # # # # # # # # # #
-plotFlag: True            # turn plotting on
+plotFlag: False            # turn plotting on
 generateFlag: True        # generate simulation input files (go get data, process, and write files)
 runFlag: False              # run the simulation
 analyzeFlag: False         # post process simulations (read files, post process data, make netCDF files, plot if desired)
@@ -23,5 +23,7 @@ modelSettings:
   grid: 1D                                    # grid format (1D or 2D)
   freqList: ['df-0.005000']    #'df-0.00500',
   ensembleNumber: 0,1,2
-  bathyFlatDistance : 3500 # length of offshore extension in meters
-  
+  bathyFlatDistance: 3500 # length of offshore extension in meters
+  eastSpongeWidth: 200
+  #wavemakerXlocation: 1100.0 # location of wavemaker in X
+

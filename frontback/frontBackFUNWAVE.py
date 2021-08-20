@@ -37,6 +37,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     model = inputDict['modelSettings'].get('model')
     grid = inputDict['modelSettings'].get('grid').lower()
     bathyFlatDistance = inputDict['modelSettings'].get('bathyFlatDistance', 'base')
+    eastSpongeWidth = inputDict['modelSettings'].get('eastSpongeWidth', 80.0)
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -282,6 +283,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
                 figPath = os.path.join(fpath,'figures')
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
+                ofPlotNameWM = os.path.join(figPath,
+                                          figureBaseFname + 'TS_WM_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') + '.png')
 
                 bottomIn = -simData['elevation']
                 dataIn = simData['eta'][tidx].squeeze() #TODO: dataIn is only used for plotting
@@ -295,6 +298,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
+                oP.generate_CrossShoreTimeseries(ofPlotNameWM, dataIn, bottomIn, simData['xFRF'],simData['xFRF'][-1]-eastSpongeWidth,simData['xFRF'][-1])
 
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))

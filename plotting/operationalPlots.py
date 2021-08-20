@@ -2304,6 +2304,9 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
         a plot
 
     """
+    xmin = kwargs.get('xmin', np.min(xIn))
+    xmax = kwargs.get('xmin', np.max(xIn))
+
     figsize = kwargs.get('figsize', (8,4))
     beachColor = 'wheat'
     skyColor = 'aquamarine'
@@ -2319,7 +2322,7 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     ax1.plot(xIn, bottomIn, color=beachColor)  # plot beach
     ax1.fill_betweenx(bottomIn, xIn, color=beachColor)  # fill in beach
     ax1.fill_between(xIn, bottomIn, dataIn, color=waterColor)  # fill in water
-    ax1.set_xlim([np.min(xIn), np.max(xIn)])
+    ax1.set_xlim([xmin, xmax])
     ax1.set_ylim([np.min(bottomIn), np.max(bottomIn) + 0.5])
 
     plt.savefig(ofname)
