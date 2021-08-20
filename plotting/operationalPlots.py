@@ -2404,7 +2404,7 @@ def crossShoreSurfaceTS2D(ofname, eta, xFRF, time):
     """
     eta= eta.squeeze()
     plt.figure()
-    plt.pcolormesh(xFRF, time, eta, cmap='RdBu')
+    plt.pcolormesh(xFRF, time, eta, cmap='RdBu', shading='auto')
     plt.savefig(ofname)
     plt.close()
 
