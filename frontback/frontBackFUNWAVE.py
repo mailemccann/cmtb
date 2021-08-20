@@ -283,7 +283,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
                 figPath = os.path.join(fpath,'figures')
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
-                ofPlotNameWM = os.path.join(figPath,
+                ofPlotNameSL = os.path.join(figPath,
                                           figureBaseFname + 'TS_WM_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') + '.png')
 
                 bottomIn = -simData['elevation']
@@ -297,8 +297,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                                              #TODO: it puts nans before the shoreline since FUNWAVE saves them like 0 value (under the depth)
 
 
-                oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
-                oP.generate_CrossShoreTimeseries(ofPlotNameWM, dataIn, bottomIn, simData['xFRF'],simData['xFRF'][-1]-eastSpongeWidth,simData['xFRF'][-1])
+                oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF']) #plot complete profile
+                oP.generate_CrossShoreTimeseries(ofPlotNameSL, dataIn, bottomIn, simData['xFRF'],simData['xFRF'][-1]-eastSpongeWidth,simData['xFRF'][-1]) # plot zoomed to east sponge layer
 
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
