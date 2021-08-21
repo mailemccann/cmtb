@@ -71,8 +71,6 @@ def Master_FUNWAVE_run(inputDict):
         #load specific date/time of interest
         with open('grids/FUNWAVE/bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
             bathy = pickle.load(fid)
-        freqList = ['a']
-        ensembleNumber = ['1']
         if version_prefix.lower() in ['freq']:  # specifically focused on df
             with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
                 phases = pickle.load(fid)
@@ -86,7 +84,9 @@ def Master_FUNWAVE_run(inputDict):
                 for i in ensembleNumber:
                     if len(phases['phase_{}_{}'.format(dfKey, i)]) == 0:
                         print('failed phase_{}_{}'.format(dfKey, i))
-
+        else:
+            freqList = ['a']
+            ensembleNumber = ['1']
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
         freqList = ['a']

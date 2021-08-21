@@ -108,7 +108,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     if version_prefix.lower().startswith('freq'):
         nprocessors = 48
         py = 1
-        px = 36
+        px = 48
     else:
         nprocessors = px * py  # now calculated on init
 
