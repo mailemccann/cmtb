@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
@@ -33,7 +33,7 @@ def Master_FUNWAVE_run(inputDict):
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
-    workingDir = inputDict['workingDirectory']
+    workingDir = inputDict.get('workingDirectory', 'data')
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
@@ -88,7 +88,7 @@ def Master_FUNWAVE_run(inputDict):
             freqList = ['a']
             ensembleNumber = ['1']
     else:
-        bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+        bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=[940, 950])
         freqList = ['a']
         ensembleNumber = ['1']
     if generateFlag is True:
