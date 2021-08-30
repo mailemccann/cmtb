@@ -43,8 +43,8 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # this raises error if not present (intended)
     version_prefix = inputDict['modelSettings']['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
-    dx = inputDict.get('dx', 0.5)
-    dy = inputDict.get('dy', 0.5)
+    dx = inputDict['modelSettings'].get('dx', 0.5)
+    dy = inputDict['modelSettings'].get('dy', 1)
     nf = inputDict['modelSettings'].get('nf', 100)
     phases = inputDict.get('phases', None)
     runDuration = int(inputDict['modelSettings'].get('runDuration', 4200))
@@ -86,12 +86,13 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ### ____________ Get bathy grid from thredds ________________
 
     if grid.lower() == '1d':    # non-inclusive index for yBounds
-        ybounds = [bathy['yFRF']-1.5*dy, bathy['yFRF']+1.5*dy]# [bathy['yFRF']-dy, bathy['yFRF']+dy]  ## should take a
-        # look at this
+        # define alongshore bounds number of cells
+        ybounds = [min(bathy['yFRF']), max(bathy['yFRF'])]# look at this
+        dy = np.diff(ybounds)/3  # set 3 cells only in y-direction for 1D runs (funwave)
     else:
         ybounds = [600,1100]
 
-    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds)  #
+    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds, dy=dy, dx=dx)  #
 
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
