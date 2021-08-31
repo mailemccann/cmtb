@@ -36,6 +36,7 @@ def Master_FUNWAVE_run(inputDict):
     workingDir = inputDict.get('workingDirectory', 'data')
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
+    pbsFlag = inputDict['pbsFlag']
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
     model = inputDict.get('modelName', 'FUNWAVE').lower()
@@ -119,14 +120,20 @@ def Master_FUNWAVE_run(inputDict):
                     dt = time.time()
 
                     count = multiprocessing.cpu_count()
-                    if count < fIO.nprocess:
-                        raise EnvironmentError('simulation is calling for more cores than are avialable, please check logic')
+                    #if count < fIO.nprocess:
+                    #    raise EnvironmentError('simulation is calling for more cores than are avialable, please check logic')
                         # this could be the logic associated with generating px,py (core counts requested) this could be
                         # with the logic asking how many cores are available
 
                     print('Running Simulation with {} processors'.format(fIO.nprocess))
-                    executionString = "mpiexec -n {} -f {} {} input.txt".format(int(fIO.nprocess), hostfile,
+                    if pbsFlag == True:
+                        executionString = "qsub submit_script.pbs"
+                    else:
+                        executionString = "mpiexec -n {} -f {} {} input.txt".format(int(fIO.nprocess), hostfile,
                                                                     os.path.join(curdir, inputDict['modelExecutable']))
+
+                    print(executionString)
+
                     _ = check_output(executionString, shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
