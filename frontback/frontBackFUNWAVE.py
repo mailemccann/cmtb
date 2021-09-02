@@ -177,12 +177,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     
-    # dictate fpath depending of the machine
-    if pbsFile== True :
-        fpath = os.path.join('p','work2','gabys',
-    else:
-        fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
-
+    fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
+    print(fpath)
     #_____________________________________________________________________________
     #_____________________________________________________________________________
 

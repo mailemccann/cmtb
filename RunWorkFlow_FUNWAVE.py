@@ -148,11 +148,16 @@ def Master_FUNWAVE_run(inputDict):
 
                 if analyzeFlag == True:
                     print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                    fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
+                    if pbsFlag == True:
+                        fIO.path_prefix = os.path.join('p','work2','gabys','cmtb',dateString)
+                    else:
+                        fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
+                    print('Analyzing simulation: {}'.format(fIO.path_prefix))
+
                     frontBackFUNWAVE.FunwaveAnalyze(dateString, inputDict, fIO)
 
                 if plotFlag is True and DT.date.today() == projectEnd:
-                    print('  TODO tar simulation files after generating netCDF')
+                    #print('  TODO tar simulation files after generating netCDF')
                     # move files
                     moveFnames = glob.glob(curdir + 'cmtb*.png')
                     moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
