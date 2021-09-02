@@ -201,16 +201,12 @@ def FunwaveAnalyze(startTime, inputDict, fio):
             Depth1D = fio.readasciidepthfile(depthFile)
         except(UnicodeDecodeError):
             Depth1D = fio.readbinarydepthfile(depthFile)
-    elif os.path.exists(os.path.join(fpath, 'depth.txt')):
+    else os.path.exists(os.path.join(fpath, 'depth.txt')):
         try:
             Depth1D = fio.readasciidepthfile(os.path.join(fpath, 'depth.txt'))
         except (OSError):
             Depth1D = fio.readbinarydepthfile(os.path.join(fpath, 'depth.out'))
-    else:
-        try:
-            Depth1D = fio.readasciidepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.txt'))
-        except (OSError):
-            Depth1D = fio.readbinarydepthfile(os.path.join(fpath, fio.ofileNameBase, 'depth.out'))
+
     try:
         simData, simMeta = fio.loadFUNWAVE_stations(Depth1D, fname=outputFolder)  # load all files
     except:
