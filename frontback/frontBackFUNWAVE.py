@@ -131,7 +131,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     fio.Write_InputFile(inputDict, runDuration=runDuration)
 
     ## write pbs script for jim
-    walltime = DT.datetime(2021, 1, 1, 6, 0, 0)
+    walltime = DT.datetime(2021, 1, 1, 4, 0, 0)
     fio.write_pbs(inputDict, walltime)
 
     #fio.write_bot(gridDict['h'])
@@ -176,7 +176,12 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
     d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
+    
+    # dictate fpath depending of the machine
+    if pbsFile== True :
+        fpath = os.path.join('p','work2','gabys',
+    else:
+        fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
     #_____________________________________________________________________________
