@@ -160,7 +160,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     """
     print("TODO: check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
-
+    eastSpongeWidth = inputDict['modelSettings'].get('eastSpongeWidth', 80.0)
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     cutRampingTime = inputDict['modelSettings'].get('spinupTime', 0)  # spinup Time, removes data from output file [in samples]
@@ -178,7 +178,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     
     fpath = fio.path_prefix #os.path.join(path_prefix, datestring)
-    print(fpath)
+    
     #_____________________________________________________________________________
     #_____________________________________________________________________________
 
@@ -201,7 +201,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
             Depth1D = fio.readasciidepthfile(depthFile)
         except(UnicodeDecodeError):
             Depth1D = fio.readbinarydepthfile(depthFile)
-    else os.path.exists(os.path.join(fpath, 'depth.txt')):
+    
+    elif os.path.exists(os.path.join(fpath, 'depth.txt'))==True:
         try:
             Depth1D = fio.readasciidepthfile(os.path.join(fpath, 'depth.txt'))
         except (OSError):
@@ -294,7 +295,10 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF']) #plot complete profile
-                oP.generate_CrossShoreTimeseries(ofPlotNameSL, dataIn, bottomIn, simData['xFRF'],simData['xFRF'][-1]-eastSpongeWidth,simData['xFRF'][-1]) # plot zoomed to east sponge layer
+                
+                #xmin = np.max(simData['xFRF'])-eastSpongeWidth
+                #xmax = np.max(simData['xFRF'])
+                #oP.generate_CrossShoreTimeseries(ofPlotNameSL, dataIn, bottomIn, simData['xFRF'],xmin,xmax) # plot zoomed to east sponge layer
 
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
