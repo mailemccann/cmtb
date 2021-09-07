@@ -1,7 +1,7 @@
 # # # # # # # # # # # #
 # Data control        #
 # # # # # # # # # # # #
-plotFlag: False            # turn plotting on
+plotFlag: True            # turn plotting on
 generateFlag: True        # generate simulation input files (go get data, process, and write files)
 runFlag: True              # run the simulation
 pbsFlag: True              # submit simulation through pbs file
@@ -10,8 +10,8 @@ bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defa
 ########################
 #simulations parameters#
 ########################
-startTime: '2018-02-28T00:00:00Z'           # project start time
-endTime:   '2018-02-28T01:00:00Z'           # project End time
+startTime: '2018-02-28T00:01:00Z'           # project start time
+endTime:   '2018-02-28T01:01:00Z'           # project End time
 simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
 modelExecutable: /bin/funwave-general   # path to the model
 hostFile: ~/cmtb/hostfile-IB_funwave_3
@@ -25,7 +25,7 @@ modelSettings:
   grid: 1D                                    # grid format (1D or 2D)
   freqList: ['df-0.005000']    #'df-0.00500',
   ensembleNumber: 0,1,2
-  bathyFlatDistance: 3500 # length of offshore extension in meters
-  eastSpongeWidth: 200
+  bathyFlatDistance: 200 # length of offshore extension in meters
+  eastSpongeWidth: 100
   #wavemakerXlocation: 1100.0 # location of wavemaker in X
 

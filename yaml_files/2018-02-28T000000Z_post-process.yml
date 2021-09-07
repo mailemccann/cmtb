@@ -4,7 +4,7 @@
 plotFlag: True            # turn plotting on
 generateFlag: True        # generate simulation input files (go get data, process, and write files)
 runFlag: False              # run the simulation
-pbsFlag: False             # submit simulation through pbs file
+pbsFlag: True             # submit simulation through pbs file
 analyzeFlag: True         # post process simulations (read files, post process data, make netCDF files, plot if desired)
 bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
 ########################
