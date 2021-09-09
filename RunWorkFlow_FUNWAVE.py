@@ -51,12 +51,16 @@ def Master_FUNWAVE_run(inputDict):
                                              endTime=endTime, log=False)
     # ____________________________________________________________
     # establishing the resolution of the input datetime
-    projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
-    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    #projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+    #projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # This is the portion that creates a list of simulation end times
     # make List of Datestring items, for simulations
-    dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(projectStart, projectEnd,
-                                                                              simulationDuration=simulationDuration)
+    #dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(projectStart, projectEnd,
+    #                                                                          simulationDuration=simulationDuration)
+    dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(startTime, endTime,
+                                                                                          simulationDuration)
+    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
+
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
