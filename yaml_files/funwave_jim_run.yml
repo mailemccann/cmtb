@@ -1,0 +1,31 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+plotFlag: True            # turn plotting on
+generateFlag: True        # generate simulation input files (go get data, process, and write files)
+runFlag: True              # run the simulation
+pbsFlag: True              # submit simulation through pbs file
+analyzeFlag: False         # post process simulations (read files, post process data, make netCDF files, plot if desired)
+bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
+########################
+#simulations parameters#
+########################
+startTime: '$'                   # project start time
+endTime: '$'                     # project end time
+simulationDuration: 6            # duration in hours  ie. how frequently to get new data, size of individual simulations
+modelExecutable: /bin/funwave-general   # path to the model
+hostFile: ~/cmtb/hostfile-IB_funwave_3
+########################
+# path stuff           #
+########################
+modelSettings:
+  model: funwave
+  version_prefix: base                        # controls switched with int the code
+  walltime: 3                                 # walltime in pbs file
+  grid: 1D                                    # grid format (1D or 2D)
+  freqList: ['df-0.005000']    #'df-0.00500',
+  ensembleNumber: 0,1,2
+  bathyFlatDistance: 200 # length of offshore extension in meters
+  eastSpongeWidth: 80
+  #wavemakerXlocation: 1100.0 # location of wavemaker in X
+
