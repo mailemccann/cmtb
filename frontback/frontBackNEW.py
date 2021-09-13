@@ -30,6 +30,8 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     """
     # begin by setting up input parameters
+    import pdb
+    pdb.set_trace()
     simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
     
@@ -67,7 +69,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (startTime, endTime)
     # use generated time lists for these to provide accurate temporal values
     _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(startTime, endTime, rawspec, rawWL,
-                                                                                     rawWind=rawwind)
+                                                                                     rawWind=rawwind,simTs=30*60)
     nFreq = np.size(rawspec['wavefreqbin'])
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=10,

@@ -31,6 +31,8 @@ def Master_workFlow(inputDict):
     pbsFlag = inputDict['pbsFlag']
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
+    hotStartFlag = inputDict['hotStartFlag']
+    hotStartDirectory = inputDict.get('hotStartDirectory',None)
     modelName = inputDict['modelSettings'].get('modelName', None)
     log = inputDict.get('logging', True)
     updateBathy = inputDict['updateBathy']
@@ -90,9 +92,8 @@ def Master_workFlow(inputDict):
             if modelName in ['ww3']:
                 wrr = wrrClass.ww3io(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
                                      startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
-                                     endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
-                                     hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                     generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag)
+                                     endTime=DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ'), runFlag=runFlag,
+                                     generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag, hotStartFlag=hotStartFlag)
                 
                 if generateFlag is True:
                     wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
@@ -149,17 +150,17 @@ def Master_workFlow(inputDict):
                     print("windPacket has keys: {}".format(windPacket.keys()))
                 except AttributeError:
                     pass
-                
-                if pbsFlag is True:
-                    wrr.hpcCores = inputDict['hpcSettings']['hpcCores']
-                    wrr.hpcNodes = inputDict['hpcSettings']['hpcNodes']
+                print(updateBathy)                
                 # write simulation files (if assigned)
                 wrr.writeAllFiles(bathyPacket, wavePacket=wavePacket, wlPacket=wlPacket, windPacket=windPacket,
-                                  ctdPacket=ctdPacket,gridfname=gridFname,updateBathy=updateBathy)
+                                  ctdPacket=ctdPacket,gridfname=gridFname,updateBathy=updateBathy,hotStartDirectory=hotStartDirectory)
                 
             # run simulation (as appropriate)
             if runFlag is True:
-                wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
+                if pbsFlag is True:
+                    wrr.hpcCores = inputDict['hpcSettings']['hpcCores']
+                    wrr.hpcNodes = inputDict['hpcSettings']['hpcNodes']
+                wrr.runSimulation(modelExecutable=inputDict['modelExecutable'],hotStartDirectory=hotStartDirectory)
             
             # post process (as appropriate)
             #spatialData, savePointData = wrr.readAllFiles()
